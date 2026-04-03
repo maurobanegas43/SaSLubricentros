@@ -1,151 +1,89 @@
 import 'package:flutter/material.dart';
-import '../../models/vehicle.dart';
+import 'package:provider/provider.dart';
+import '../../core/app_router.dart';
+import '../../providers/vehicle_provider.dart';
+import '../../widgets/vehicle_card.dart';
+import '../../widgets/common/skeleton_loader.dart';
+import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/error_banner.dart';
+import '../../constants/app_constants.dart';
 
-class VehiclesListScreen extends StatelessWidget {
+class VehiclesListScreen extends StatefulWidget {
   const VehiclesListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    // TODO: Obtener vehículos de la API
-    final List<Vehicle> vehicles = [];
-    
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis Vehículos'),
-        backgroundColor: theme.colorScheme.surface,
-        elevation: 0,
-      ),
-      body: vehicles.isEmpty
-          ? _buildEmptyState(context)
-          : _buildVehiclesList(vehicles),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Navegar a agregar vehículo
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Agregar'),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.directions_car_outlined,
-              size: 80,
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No tenés vehículos',
-              style: theme.textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Agregá tu primer auto para comenzar',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVehiclesList(List<Vehicle> vehicles) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: vehicles.length,
-      itemBuilder: (context, index) {
-        final vehicle = vehicles[index];
-        return _VehicleCard(vehicle: vehicle);
-      },
-    );
-  }
+  State<VehiclesListScreen> createState() => _VehiclesListScreenState();
 }
 
-class _VehicleCard extends StatelessWidget {
-  final Vehicle vehicle;
-
-  const _VehicleCard({required this.vehicle});
+class _VehiclesListScreenState extends State<VehiclesListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load vehicles when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<VehicleProvider>().loadVehicles();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () {
-          // TODO: Navegar a detalle
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.directions_car,
-                    color: theme.colorScheme.primary,
-                    size: 32,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          vehicle.displayName,
-                          style: theme.textTheme.headlineMedium,
-                        ),
-                        if (vehicle.motor != null)
-                          Text(
-                            'Motor ${vehicle.motor}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: theme.colorScheme.onSurface.withOpacity(0.3),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Icon(
-                    Icons.speed,
-                    size: 16,
-                    color: theme.colorScheme.secondary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${vehicle.kmActual.toString()} km',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+    final vehicleProvider = context.watch<VehicleProvider>();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(AppStrings.vehiclesTitle),
+        backgroundColor: theme.colorScheme.surface,
+        elevation: 0,
+      ),
+      body: vehicleProvider.vehiclesState.when(
+        loading: () => ListView.builder(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          itemCount: 3,
+          itemBuilder: (_, __) => const CardSkeleton(),
         ),
+        data: (vehicles) {
+          if (vehicles.isEmpty) {
+            return EmptyState(
+              icon: Icons.directions_car_outlined,
+              title: AppStrings.noVehicles,
+              subtitle: AppStrings.noVehiclesSubtitle,
+              actionLabel: AppStrings.addVehicleFab,
+              onAction: () => Navigator.pushNamed(context, AppRoute.addVehicle),
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () => vehicleProvider.refresh(),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: vehicles.length,
+              itemBuilder: (context, index) {
+                final vehicle = vehicles[index];
+                return VehicleCard(
+                  vehicle: vehicle,
+                  proximoServiceKm: 50000,
+                  onTap: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoute.vehicleDetail,
+                      arguments: vehicle,
+                    );
+                  },
+                );
+              },
+            ),
+          );
+        },
+        error: (message) => ErrorBanner(
+          message: message,
+          onRetry: () => vehicleProvider.refresh(),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.pushNamed(context, AppRoute.addVehicle),
+        icon: const Icon(Icons.add),
+        label: const Text(AppStrings.addVehicleFab),
       ),
     );
   }

@@ -1,0 +1,142 @@
+package handler
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/lubricentros/api/internal/dto"
+	"github.com/lubricentros/api/internal/middleware"
+	"github.com/lubricentros/api/internal/repository"
+	"github.com/lubricentros/api/internal/usecase"
+	"github.com/lubricentros/api/pkg/response"
+)
+
+// AuthHandler handles authentication HTTP requests.
+type AuthHandler struct {
+	authUsecase *usecase.AuthUsecase
+}
+
+// NewAuthHandler creates a new auth handler.
+func NewAuthHandler(authUsecase *usecase.AuthUsecase) *AuthHandler {
+	return &AuthHandler{authUsecase: authUsecase}
+}
+
+// Register handles POST /auth/register
+func (h *AuthHandler) Register(c *gin.Context) {
+	var req dto.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	result, err := h.authUsecase.Register(c.Request.Context(), usecase.RegisterInput{
+		Email:    req.Email,
+		Password: req.Password,
+		Name:     req.Name,
+		Phone:    req.Phone,
+	})
+	if err != nil {
+		if err == repository.ErrAlreadyExists {
+			response.Error(c, http.StatusConflict, "Conflict", "Email already registered")
+			return
+		}
+		if err == repository.ErrInvalidInput {
+			response.Error(c, http.StatusBadRequest, "Bad Request", "Invalid input data")
+			return
+		}
+		response.InternalError(c)
+		return
+	}
+
+	response.Created(c, dto.TokenResponse{
+		AccessToken:  result.AccessToken,
+		RefreshToken: result.RefreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900, // 15 minutes
+	})
+}
+
+// Login handles POST /auth/login
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req dto.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	result, err := h.authUsecase.Login(c.Request.Context(), usecase.LoginInput{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		if err == repository.ErrInvalidInput || err.Error() == "login: invalid credentials: invalid input" {
+			response.Error(c, http.StatusUnauthorized, "Unauthorized", "Invalid email or password")
+			return
+		}
+		response.InternalError(c)
+		return
+	}
+
+	response.JSON(c, http.StatusOK, dto.TokenResponse{
+		AccessToken:  result.AccessToken,
+		RefreshToken: result.RefreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900,
+	})
+}
+
+// Refresh handles POST /auth/refresh
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req dto.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	result, err := h.authUsecase.Refresh(c.Request.Context(), usecase.RefreshInput{
+		RefreshToken: req.RefreshToken,
+	})
+	if err != nil {
+		if err == repository.ErrInvalidInput {
+			response.Error(c, http.StatusUnauthorized, "Unauthorized", "Invalid refresh token")
+			return
+		}
+		response.InternalError(c)
+		return
+	}
+
+	response.JSON(c, http.StatusOK, dto.TokenResponse{
+		AccessToken:  result.AccessToken,
+		RefreshToken: result.RefreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    900,
+	})
+}
+
+// Logout handles POST /auth/logout
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var req dto.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	if err := h.authUsecase.Logout(c.Request.Context(), req.RefreshToken); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.NoContent(c)
+}
+
+// LogoutAll handles POST /auth/logout-all
+func (h *AuthHandler) LogoutAll(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	if err := h.authUsecase.LogoutAll(c.Request.Context(), userID); err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	response.NoContent(c)
+}

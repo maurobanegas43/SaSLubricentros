@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../models/vehicle.dart';
+import '../../constants/app_constants.dart';
+import '../../widgets/common/empty_state.dart';
 
 class VehicleDetailScreen extends StatelessWidget {
-  final Vehicle vehicle;
-
+  final dynamic vehicle;
   const VehicleDetailScreen({super.key, required this.vehicle});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detalle del Vehículo'),
+        title: const Text(AppStrings.vehicleDetail),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
+        // Consistent back navigation with back arrow
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
+          tooltip: AppStrings.backToHome,
         ),
         actions: [
           IconButton(
@@ -26,6 +28,7 @@ class VehicleDetailScreen extends StatelessWidget {
             onPressed: () {
               // TODO: Editar vehículo
             },
+            tooltip: 'Editar',
           ),
         ],
       ),
@@ -35,24 +38,32 @@ class VehicleDetailScreen extends StatelessWidget {
           children: [
             // Header Card
             Card(
-              margin: const EdgeInsets.all(16),
+              margin: const EdgeInsets.all(AppSpacing.md),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.directions_car,
-                      size: 64,
-                      color: theme.colorScheme.primary,
+                    // Hero animation target — matches VehicleCard icon
+                    Hero(
+                      tag: 'vehicle-icon-${vehicle.id}',
+                      child: Icon(Icons.directions_car,
+                          size: 64, color: theme.colorScheme.primary),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      vehicle.displayName,
-                      style: theme.textTheme.displayLarge,
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: AppSpacing.md),
+                    // Hero animation target — matches VehicleCard name
+                    Hero(
+                      tag: 'vehicle-name-${vehicle.id}',
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: Text(
+                          vehicle.displayName,
+                          style: theme.textTheme.displayLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
                     if (vehicle.motor != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xxs),
                       Text(
                         'Motor ${vehicle.motor}',
                         style: theme.textTheme.bodyMedium,
@@ -62,34 +73,31 @@ class VehicleDetailScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // KM Actual
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.speed,
-                        color: theme.colorScheme.secondary,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 16),
+                      Icon(Icons.speed,
+                          color: theme.colorScheme.secondary, size: 32),
+                      const SizedBox(width: AppSpacing.md),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text(AppStrings.currentKm,
+                              style: theme.textTheme.bodySmall),
+                          const SizedBox(height: AppSpacing.xxs),
                           Text(
-                            'Kilometraje Actual',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${NumberFormat('#,###').format(vehicle.kmActual)} km',
+                            '${NumberFormat('#,###').format(vehicle.kmActual)} ${AppStrings.kmSuffix}',
                             style: theme.textTheme.bodyLarge?.copyWith(
                               fontSize: 20,
-                              fontFeatures: const [FontFeature.tabularFigures()],
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
                             ),
                           ),
                         ],
@@ -99,38 +107,23 @@ class VehicleDetailScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
-            const SizedBox(height: 24),
-            
+
+            const SizedBox(height: AppSpacing.xl),
+
             // Historial Section
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Historial de Servicios',
-                style: theme.textTheme.headlineMedium,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text(AppStrings.serviceHistory,
+                  style: theme.textTheme.headlineMedium),
             ),
-            const SizedBox(height: 16),
-            
+            const SizedBox(height: AppSpacing.md),
+
             // Empty State for History
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.history,
-                      size: 64,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Sin historial de servicios',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
+            EmptyState(
+              icon: Icons.history,
+              title: AppStrings.noServiceHistory,
+              subtitle: '',
+              iconSize: 64,
             ),
           ],
         ),

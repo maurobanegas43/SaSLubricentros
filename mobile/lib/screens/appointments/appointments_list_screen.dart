@@ -1,87 +1,97 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../core/app_router.dart';
+import '../../providers/vehicle_provider.dart';
+import '../../providers/appointment_provider.dart';
 import '../../models/appointment.dart';
+import '../../widgets/common/skeleton_loader.dart';
+import '../../widgets/common/empty_state.dart';
+import '../../widgets/common/error_banner.dart';
+import '../../constants/app_constants.dart';
 
-class AppointmentsListScreen extends StatelessWidget {
+class AppointmentsListScreen extends StatefulWidget {
   const AppointmentsListScreen({super.key});
+
+  @override
+  State<AppointmentsListScreen> createState() => _AppointmentsListScreenState();
+}
+
+class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppointmentProvider>().loadAppointments();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // TODO: Obtener turnos de la API
-    final List<Appointment> appointments = [];
-    
+    final appointmentProvider = context.watch<AppointmentProvider>();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis Turnos'),
+        title: const Text(AppStrings.appointmentsTitle),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
       ),
-      body: appointments.isEmpty
-          ? _buildEmptyState(context)
-          : _buildAppointmentsList(appointments),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO: Navegar a crear turno
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Nuevo Turno'),
-      ),
-    );
-  }
+      body: appointmentProvider.appointmentsState.when(
+        loading: () => ListView.builder(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          itemCount: 3,
+          itemBuilder: (_, __) => const CardSkeleton(lines: 2),
+        ),
+        data: (appointments) {
+          if (appointments.isEmpty) {
+            return EmptyState(
+              icon: Icons.event_outlined,
+              title: AppStrings.noAppointments,
+              subtitle: AppStrings.noAppointmentsSubtitle,
+              actionLabel: AppStrings.newAppointment,
+              onAction: () {
+                final vehicles = context.read<VehicleProvider>().vehicles;
+                Navigator.pushNamed(context, AppRoute.createAppointment, arguments: vehicles);
+              },
+            );
+          }
 
-  Widget _buildEmptyState(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.event_outlined,
-              size: 80,
-              color: theme.colorScheme.onSurface.withOpacity(0.3),
+          final sorted = [...appointments]..sort((a, b) => a.fecha.compareTo(b.fecha));
+
+          return RefreshIndicator(
+            onRefresh: () => appointmentProvider.refresh(),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: sorted.length,
+              itemBuilder: (context, index) {
+                return _AppointmentCard(appointment: sorted[index]);
+              },
             ),
-            const SizedBox(height: 24),
-            Text(
-              'No tenés turnos',
-              style: theme.textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Sacá un turno para tu próximo service',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+          );
+        },
+        error: (message) => ErrorBanner(
+          message: message,
+          onRetry: () => appointmentProvider.refresh(),
         ),
       ),
-    );
-  }
-
-  Widget _buildAppointmentsList(List<Appointment> appointments) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: appointments.length,
-      itemBuilder: (context, index) {
-        final appointment = appointments[index];
-        return _AppointmentCard(appointment: appointment);
-      },
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          final vehicles = context.read<VehicleProvider>().vehicles;
+          Navigator.pushNamed(context, AppRoute.createAppointment, arguments: vehicles);
+        },
+        icon: const Icon(Icons.add),
+        label: const Text(AppStrings.newAppointment),
+      ),
     );
   }
 }
 
 class _AppointmentCard extends StatelessWidget {
   final Appointment appointment;
-
   const _AppointmentCard({required this.appointment});
 
-  Color _getStatusColor(AppointmentStatus status, ColorScheme colorScheme) {
+  Color _getStatusColor(AppointmentStatus status) {
     switch (status) {
       case AppointmentStatus.pending:
         return Colors.orange;
@@ -97,13 +107,13 @@ class _AppointmentCard extends StatelessWidget {
   String _getStatusText(AppointmentStatus status) {
     switch (status) {
       case AppointmentStatus.pending:
-        return 'Pendiente';
+        return AppStrings.statusPending;
       case AppointmentStatus.confirmed:
-        return 'Confirmado';
+        return AppStrings.statusConfirmed;
       case AppointmentStatus.completed:
-        return 'Completado';
+        return AppStrings.statusCompleted;
       case AppointmentStatus.cancelled:
-        return 'Cancelado';
+        return AppStrings.statusCancelled;
     }
   }
 
@@ -111,11 +121,12 @@ class _AppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    
+    final statusColor = _getStatusColor(appointment.status);
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -130,28 +141,24 @@ class _AppointmentCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(appointment.status, theme.colorScheme).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
                   ),
                   child: Text(
                     _getStatusText(appointment.status),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: _getStatusColor(appointment.status, theme.colorScheme),
+                      color: statusColor,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: theme.colorScheme.secondary,
-                ),
-                const SizedBox(width: 8),
+                Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.secondary),
+                const SizedBox(width: AppSpacing.xs),
                 Text(
                   dateFormat.format(appointment.fecha),
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -161,7 +168,7 @@ class _AppointmentCard extends StatelessWidget {
               ],
             ),
             if (appointment.observaciones != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 appointment.observaciones!,
                 style: theme.textTheme.bodySmall,

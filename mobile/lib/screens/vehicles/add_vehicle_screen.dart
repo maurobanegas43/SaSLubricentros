@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../../providers/vehicle_provider.dart';
+import '../../widgets/common/animated_button.dart';
+import '../../constants/app_constants.dart';
 
 class AddVehicleScreen extends StatefulWidget {
   const AddVehicleScreen({super.key});
@@ -15,7 +19,19 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   final _anioController = TextEditingController();
   final _motorController = TextEditingController();
   final _kmController = TextEditingController();
-  bool _isLoading = false;
+  final _marcaFocus = FocusNode();
+  final _modeloFocus = FocusNode();
+  final _anioFocus = FocusNode();
+  final _motorFocus = FocusNode();
+  final _kmFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _marcaFocus.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
@@ -24,20 +40,36 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     _anioController.dispose();
     _motorController.dispose();
     _kmController.dispose();
+    _marcaFocus.dispose();
+    _modeloFocus.dispose();
+    _anioFocus.dispose();
+    _motorFocus.dispose();
+    _kmFocus.dispose();
     super.dispose();
   }
 
   void _handleSubmit() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      
-      // TODO: Crear vehículo via API
-      await Future.delayed(const Duration(seconds: 1));
-      
-      if (mounted) {
+      HapticFeedback.mediumImpact();
+      final vehicleProvider = context.read<VehicleProvider>();
+
+      final success = await vehicleProvider.addVehicle(
+        marca: _marcaController.text.trim(),
+        modelo: _modeloController.text.trim(),
+        anio: int.parse(_anioController.text),
+        motor: _motorController.text.trim().isEmpty
+            ? null
+            : _motorController.text.trim(),
+        kmActual: int.parse(_kmController.text),
+      );
+
+      if (success && mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vehículo agregado exitosamente')),
+          SnackBar(
+            content: const Text(AppStrings.vehicleCreated),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -46,125 +78,139 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+    final vehicleProvider = context.watch<VehicleProvider>();
+    final isLoading = vehicleProvider.isLoading;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Agregar Vehículo'),
+        title: const Text(AppStrings.addVehicle),
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'Volver',
         ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _marcaController,
-              decoration: const InputDecoration(
-                labelText: 'Marca',
-                prefixIcon: Icon(Icons.directions_car_outlined),
-                hintText: 'Ej: Toyota',
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Form(
+          key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            children: [
+              // Marca
+              TextFormField(
+                controller: _marcaController,
+                focusNode: _marcaFocus,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: AppStrings.labelMarca,
+                  prefixIcon: Icon(Icons.directions_car_outlined),
+                  hintText: 'Ej: Toyota',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty)
+                    return AppStrings.validationRequired;
+                  return null;
+                },
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingresá la marca';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            TextFormField(
-              controller: _modeloController,
-              decoration: const InputDecoration(
-                labelText: 'Modelo',
-                prefixIcon: Icon(Icons.directions_car_outlined),
-                hintText: 'Ej: Corolla',
+              const SizedBox(height: AppSpacing.md),
+
+              // Modelo
+              TextFormField(
+                controller: _modeloController,
+                focusNode: _modeloFocus,
+                textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: AppStrings.labelModelo,
+                  prefixIcon: Icon(Icons.directions_car_outlined),
+                  hintText: 'Ej: Corolla',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty)
+                    return AppStrings.validationRequired;
+                  return null;
+                },
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingresá el modelo';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            TextFormField(
-              controller: _anioController,
-              decoration: const InputDecoration(
-                labelText: 'Año',
-                prefixIcon: Icon(Icons.calendar_today),
-                hintText: 'Ej: 2020',
+              const SizedBox(height: AppSpacing.md),
+
+              // Año
+              TextFormField(
+                controller: _anioController,
+                focusNode: _anioFocus,
+                textInputAction: TextInputAction.next,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: AppStrings.labelAnio,
+                  prefixIcon: Icon(Icons.calendar_today),
+                  hintText: 'Ej: 2020',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty)
+                    return AppStrings.validationRequired;
+                  final year = int.tryParse(value);
+                  if (year == null ||
+                      year < 1900 ||
+                      year > DateTime.now().year + 1) {
+                    return AppStrings.validationInvalidYear;
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingresá el año';
-                }
-                final year = int.tryParse(value);
-                if (year == null || year < 1900 || year > DateTime.now().year + 1) {
-                  return 'Año inválido';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            TextFormField(
-              controller: _motorController,
-              decoration: const InputDecoration(
-                labelText: 'Motor (opcional)',
-                prefixIcon: Icon(Icons.settings_outlined),
-                hintText: 'Ej: 1.8',
+              const SizedBox(height: AppSpacing.md),
+
+              // Motor (optional)
+              TextFormField(
+                controller: _motorController,
+                focusNode: _motorFocus,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: AppStrings.labelMotor,
+                  prefixIcon: Icon(Icons.settings_outlined),
+                  hintText: 'Ej: 1.8',
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            
-            TextFormField(
-              controller: _kmController,
-              decoration: const InputDecoration(
-                labelText: 'Kilometraje Actual',
-                prefixIcon: Icon(Icons.speed),
-                hintText: 'Ej: 45000',
-                suffixText: 'km',
+              const SizedBox(height: AppSpacing.md),
+
+              // Kilometraje
+              TextFormField(
+                controller: _kmController,
+                focusNode: _kmFocus,
+                textInputAction: TextInputAction.done,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: AppStrings.labelKm,
+                  prefixIcon: Icon(Icons.speed),
+                  hintText: 'Ej: 45000',
+                  suffixText: AppStrings.kmSuffix,
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty)
+                    return AppStrings.validationRequired;
+                  final km = int.tryParse(value);
+                  if (km == null || km < 0)
+                    return AppStrings.validationInvalidKm;
+                  return null;
+                },
+                onFieldSubmitted: (_) => _handleSubmit(),
               ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingresá el kilometraje';
-                }
-                final km = int.tryParse(value);
-                if (km == null || km < 0) {
-                  return 'Kilometraje inválido';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 32),
-            
-            ElevatedButton(
-              onPressed: _isLoading ? null : _handleSubmit,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Agregar Vehículo'),
-            ),
-          ],
+              const SizedBox(height: AppSpacing.xl),
+
+              // Submit Button
+              AnimatedButton(
+                label: AppStrings.addVehicle,
+                onPressed: _handleSubmit,
+                isLoading: isLoading,
+                icon: Icons.add,
+              ),
+            ],
+          ),
         ),
       ),
     );
