@@ -1,0 +1,36 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - forbidigo
+
+linters-settings:
+  forbidigo:
+    # Forbid logging of passwords
+    forbid:
+      - p: 'log\..*[Pp]assword'
+        msg: 'Logging passwords is forbidden for security reasons. Use [REDACTED] or remove the log statement.'
+      - p: 'logger\..*[Pp]assword'
+        msg: 'Logging passwords is forbidden for security reasons. Use [REDACTED] or remove the log statement.'
+      - p: 'fmt\.Print.*[Pp]assword'
+        msg: 'Printing passwords is forbidden for security reasons. Use [REDACTED] or remove the print statement.'
+      - p: 'fmt\.Sprintf.*[Pp]assword.*\)'
+        msg: 'Formatting strings with passwords is risky. Ensure passwords are not logged or exposed.'
+
+issues:
+  exclude-rules:
+    # Allow password in variable names and struct fields
+    - path: '(.+)_test\.go'
+      text: 'Logging passwords is forbidden'
+    # Allow in test files for testing redaction
+    - path: 'logging_test\.go'
+      linters:
+        - forbidigo
