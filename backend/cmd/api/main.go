@@ -57,10 +57,10 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
-	
+
 	// Add CORS middleware
 	r.Use(infraMiddleware.CORS())
-	
+
 	// Add input sanitization middleware
 	r.Use(infraMiddleware.InputSanitizer())
 
@@ -72,12 +72,13 @@ func main() {
 	refreshRepo := repository.NewRefreshTokenRepository(db)
 	auditRepo := repository.NewAuditLogRepository(db)
 	passwordResetRepo := repository.NewPasswordResetTokenRepository(db)
+	vehicleTransferRepo := repository.NewVehicleTransferRepository(db)
 
 	// Create usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, refreshRepo, jwtMgr)
-	authUsecase.SetAuditRepo(auditRepo) // Set audit repo to avoid circular dependency
+	authUsecase.SetAuditRepo(auditRepo)                 // Set audit repo to avoid circular dependency
 	authUsecase.SetPasswordResetRepo(passwordResetRepo) // Set password reset repo
-	vehicleUsecase := usecase.NewVehicleUsecase(vehicleRepo, serviceRepo)
+	vehicleUsecase := usecase.NewVehicleUsecase(vehicleRepo, serviceRepo, vehicleTransferRepo, userRepo)
 	appointmentUsecase := usecase.NewAppointmentUsecase(appointmentRepo, vehicleRepo)
 	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo)
 
@@ -117,6 +118,8 @@ func main() {
 			vehicles.PUT("/:id", vehicleHandler.Update)
 			vehicles.DELETE("/:id", vehicleHandler.Delete)
 			vehicles.GET("/:id/report", vehicleHandler.GetReport)
+			vehicles.POST("/:id/transfer", vehicleHandler.TransferOwnership)
+			vehicles.GET("/:id/transfers", vehicleHandler.GetTransferHistory)
 		}
 
 		// Appointment routes

@@ -12,18 +12,24 @@ import (
 
 // VehicleUsecase handles vehicle business logic.
 type VehicleUsecase struct {
-	vehicleRepo domainrepo.VehicleRepository
-	serviceRepo domainrepo.ServiceRecordRepository
+	vehicleRepo  domainrepo.VehicleRepository
+	serviceRepo  domainrepo.ServiceRecordRepository
+	transferRepo domainrepo.VehicleTransferRepository
+	userRepo     domainrepo.UserRepository
 }
 
 // NewVehicleUsecase creates a new vehicle usecase.
 func NewVehicleUsecase(
 	vehicleRepo domainrepo.VehicleRepository,
 	serviceRepo domainrepo.ServiceRecordRepository,
+	transferRepo domainrepo.VehicleTransferRepository,
+	userRepo domainrepo.UserRepository,
 ) *VehicleUsecase {
 	return &VehicleUsecase{
-		vehicleRepo: vehicleRepo,
-		serviceRepo: serviceRepo,
+		vehicleRepo:  vehicleRepo,
+		serviceRepo:  serviceRepo,
+		transferRepo: transferRepo,
+		userRepo:     userRepo,
 	}
 }
 
@@ -213,4 +219,76 @@ func (uc *VehicleUsecase) GetVehicleReport(ctx context.Context, vehicleID uint, 
 	}
 
 	return report, nil
+}
+
+// TransferOwnershipInput holds the input for transferring vehicle ownership.
+type TransferOwnershipInput struct {
+	VehicleID   uint
+	FromUserID  uint
+	ToUserID    uint
+	Reason      string
+	InitiatedBy uint
+}
+
+// TransferOwnership transfers vehicle ownership from one user to another.
+func (uc *VehicleUsecase) TransferOwnership(ctx context.Context, input TransferOwnershipInput) (*entity.VehicleTransfer, error) {
+	// Check if vehicle exists and belongs to current user
+	vehicle, err := uc.vehicleRepo.GetByID(ctx, input.VehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("transfer ownership: vehicle not found: %w", err)
+	}
+
+	// Verify ownership
+	if vehicle.UserID != input.FromUserID {
+		return nil, errors.New("vehicle does not belong to user")
+	}
+
+	// Check if target user exists
+	_, err = uc.userRepo.GetByID(ctx, input.ToUserID)
+	if err != nil {
+		return nil, errors.New("target user does not exist")
+	}
+
+	// Prevent self-transfer
+	if input.FromUserID == input.ToUserID {
+		return nil, errors.New("cannot transfer to same user")
+	}
+
+	// Update vehicle owner
+	vehicle.UserID = input.ToUserID
+	if err := uc.vehicleRepo.Update(ctx, vehicle); err != nil {
+		return nil, fmt.Errorf("transfer ownership: update vehicle: %w", err)
+	}
+
+	// Create transfer record
+	transfer := &entity.VehicleTransfer{
+		VehicleID:   input.VehicleID,
+		FromUserID:  &input.FromUserID,
+		ToUserID:    input.ToUserID,
+		Reason:      &input.Reason,
+		InitiatedBy: &input.InitiatedBy,
+		Status:      "completed",
+	}
+
+	if err := uc.transferRepo.Create(ctx, transfer); err != nil {
+		return nil, fmt.Errorf("transfer ownership: create record: %w", err)
+	}
+
+	return transfer, nil
+}
+
+// GetTransferHistory returns the ownership history for a vehicle.
+func (uc *VehicleUsecase) GetTransferHistory(ctx context.Context, vehicleID uint, userID uint) ([]entity.VehicleTransfer, error) {
+	// Check ownership
+	_, err := uc.GetVehicleByID(ctx, vehicleID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get transfer history: %w", err)
+	}
+
+	transfers, err := uc.transferRepo.GetByVehicleID(ctx, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("get transfer history: %w", err)
+	}
+
+	return transfers, nil
 }
