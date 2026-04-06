@@ -116,6 +116,9 @@ func main() {
 	protected := r.Group("/")
 	protected.Use(middleware.Auth(jwtMgr))
 	{
+		// User search route (for vehicle transfer)
+		protected.GET("/users/search", authHandler.SearchUsers)
+
 		// Vehicle routes
 		vehicles := protected.Group("/vehicles")
 		{

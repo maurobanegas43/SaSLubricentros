@@ -49,6 +49,65 @@ func (uc *AuthUsecase) SetPasswordResetRepo(passwordResetRepo domainrepo.Passwor
 	uc.passwordResetRepo = passwordResetRepo
 }
 
+// SearchUsersInput holds the input for searching users
+type SearchUsersInput struct {
+	Query string
+}
+
+// SearchUsers searches for users by name or email
+func (uc *AuthUsecase) SearchUsers(ctx context.Context, input SearchUsersInput) ([]entity.User, error) {
+	if len(input.Query) < 2 {
+		return nil, repository.ErrInvalidInput
+	}
+
+	// Get all users and filter
+	users, err := uc.userRepo.List(ctx, 0, 100)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
+	}
+
+	// Filter by query (case insensitive)
+	var results []entity.User
+	query := input.Query
+	for _, user := range users {
+		if containsIgnoreCase(user.Email, query) || containsIgnoreCase(user.Name, query) {
+			results = append(results, user)
+		}
+	}
+
+	return results, nil
+}
+
+func containsIgnoreCase(s, substr string) bool {
+	s = toLower(s)
+	substr = toLower(substr)
+	return contains(s, substr)
+}
+
+func toLower(s string) string {
+	result := make([]byte, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 32
+		}
+		result[i] = c
+	}
+	return string(result)
+}
+
+func contains(s, substr string) bool {
+	if len(substr) > len(s) {
+		return false
+	}
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 // RegisterInput holds the input for user registration.
 type RegisterInput struct {
 	Email    string
@@ -304,7 +363,6 @@ func hashToken(token string) string {
 	return fmt.Sprintf("%x", h)
 }
 
-
 // logAuthEvent logs an authentication event to the audit log
 func (uc *AuthUsecase) logAuthEvent(ctx context.Context, eventType entity.AuthEventType, email string, ipAddress string, success bool, errorMsg string) {
 	if uc.auditRepo == nil {
@@ -338,7 +396,6 @@ func getIPFromContext(ctx context.Context) string {
 	// This is a placeholder - in production, extract from Gin context
 	return "unknown"
 }
-
 
 // PasswordRecoveryInput holds the input for password recovery request
 type PasswordRecoveryInput struct {

@@ -49,6 +49,16 @@ type PasswordResetRequest struct {
 	NewPassword string `json:"new_password" validate:"required,min=8,max=72"`
 }
 
+// UserSearchRequest represents the request to search users
+type UserSearchRequest struct {
+	Query string `json:"query" validate:"required,min=2"`
+}
+
+// UserSearchResponse represents the response for user search
+type UserSearchResponse struct {
+	Users []UserResponse `json:"users"`
+}
+
 // MessageResponse represents a simple message response
 type MessageResponse struct {
 	Message string `json:"message"`

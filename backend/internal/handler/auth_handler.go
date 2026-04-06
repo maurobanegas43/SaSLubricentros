@@ -141,7 +141,6 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	response.NoContent(c)
 }
 
-
 // RequestPasswordRecovery handles POST /auth/password-recovery
 func (h *AuthHandler) RequestPasswordRecovery(c *gin.Context) {
 	var req dto.PasswordRecoveryRequest
@@ -188,5 +187,40 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 	response.JSON(c, http.StatusOK, dto.MessageResponse{
 		Message: "Password has been reset successfully",
+	})
+}
+
+// SearchUsers handles GET /users/search?q=query
+func (h *AuthHandler) SearchUsers(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		response.Error(c, http.StatusBadRequest, "Bad Request", "Query parameter 'q' is required")
+		return
+	}
+
+	users, err := h.authUsecase.SearchUsers(c.Request.Context(), usecase.SearchUsersInput{
+		Query: query,
+	})
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	// Convert to response DTOs
+	responses := make([]dto.UserResponse, len(users))
+	for i, user := range users {
+		responses[i] = dto.UserResponse{
+			ID:        user.ID,
+			Email:     user.Email,
+			Name:      user.Name,
+			Phone:     user.Phone,
+			Role:      string(user.Role),
+			IsActive:  user.IsActive,
+			CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
+	}
+
+	response.JSON(c, http.StatusOK, dto.UserSearchResponse{
+		Users: responses,
 	})
 }
