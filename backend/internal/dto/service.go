@@ -44,3 +44,15 @@ type ServiceRecordResponse struct {
 	CreatedBy        uint     `json:"created_by"`
 	CreatedAt        string   `json:"created_at"`
 }
+
+// ServiceAddendumResponse represents the sanitized addendum data.
+type ServiceAddendumResponse struct {
+	ID        uint   `json:"id"`
+	ServiceID uint   `json:"service_id"`
+	FieldName string `json:"field_name"`
+	OldValue  string `json:"old_value,omitempty"`
+	NewValue  string `json:"new_value"`
+	Reason    string `json:"reason"`
+	CreatedBy uint   `json:"created_by"`
+	CreatedAt string `json:"created_at"`
+}

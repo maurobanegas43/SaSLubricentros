@@ -6,79 +6,87 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
-// RateLimiter implements a simple in-memory sliding window rate limiter.
+// RateLimiter implements token bucket rate limiting per IP address
 type RateLimiter struct {
-	clients map[string]*clientRecord
-	mu      sync.Mutex
-	limit   int
-	window  time.Duration
+	limiters map[string]*rate.Limiter
+	mu       sync.RWMutex
+	rate     rate.Limit
+	burst    int
 }
 
-type clientRecord struct {
-	count    int
-	lastSeen time.Time
+// NewRateLimiter creates a new rate limiter
+// rate: requests per second (e.g., 5/60 = 0.0833 for 5 requests per minute)
+// burst: maximum burst size (e.g., 5 for 5 requests)
+func NewRateLimiter(requestsPerMinute int) *RateLimiter {
+	r := float64(requestsPerMinute) / 60.0 // Convert to requests per second
+	return &RateLimiter{
+		limiters: make(map[string]*rate.Limiter),
+		rate:     rate.Limit(r),
+		burst:    requestsPerMinute,
+	}
 }
 
-// NewRateLimiter creates a rate limiter.
-// limit = max requests per window duration.
-func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
-	rl := &RateLimiter{
-		clients: make(map[string]*clientRecord),
-		limit:   limit,
-		window:  window,
+// getLimiter returns the rate limiter for a given IP address
+func (rl *RateLimiter) getLimiter(ip string) *rate.Limiter {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	limiter, exists := rl.limiters[ip]
+	if !exists {
+		limiter = rate.NewLimiter(rl.rate, rl.burst)
+		rl.limiters[ip] = limiter
 	}
 
-	// Cleanup expired entries periodically
-	go rl.cleanup()
-
-	return rl
+	return limiter
 }
 
-// Middleware returns a Gin middleware that enforces rate limiting by IP.
+// Middleware returns a Gin middleware function for rate limiting
 func (rl *RateLimiter) Middleware() gin.HandlerFunc {
+	// Start cleanup goroutine
+	go rl.cleanupStaleEntries()
+
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
+		limiter := rl.getLimiter(ip)
 
-		rl.mu.Lock()
-		record, exists := rl.clients[ip]
-
-		if !exists || time.Since(record.lastSeen) > rl.window {
-			rl.clients[ip] = &clientRecord{count: 1, lastSeen: time.Now()}
-			rl.mu.Unlock()
-			c.Next()
-			return
-		}
-
-		record.count++
-		record.lastSeen = time.Now()
-
-		if record.count > rl.limit {
-			rl.mu.Unlock()
-			c.Header("Retry-After", "60")
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"error":   "Too Many Requests",
-				"message": "Rate limit exceeded. Please try again later.",
+		if !limiter.Allow() {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": gin.H{
+					"code":    "rate_limited",
+					"message": "Too many requests. Please try again later.",
+					"retry_after": 60,
+				},
 			})
+			c.Abort()
 			return
 		}
 
-		rl.mu.Unlock()
 		c.Next()
 	}
 }
 
-// cleanup removes expired entries every minute.
-func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(time.Minute)
+// cleanupStaleEntries removes limiters that haven't been used recently
+func (rl *RateLimiter) cleanupStaleEntries() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+
 	for range ticker.C {
 		rl.mu.Lock()
-		for ip, record := range rl.clients {
-			if time.Since(record.lastSeen) > rl.window {
-				delete(rl.clients, ip)
-			}
+		// In a production system, you'd track last access time
+		// For simplicity, we'll just clear all entries periodically
+		// This is acceptable since rate limiters are recreated on demand
+		if len(rl.limiters) > 1000 {
+			rl.limiters = make(map[string]*rate.Limiter)
 		}
 		rl.mu.Unlock()
 	}
+}
+
+// RateLimit creates a rate limiting middleware with the specified requests per minute
+func RateLimit(requestsPerMinute int) gin.HandlerFunc {
+	limiter := NewRateLimiter(requestsPerMinute)
+	return limiter.Middleware()
 }

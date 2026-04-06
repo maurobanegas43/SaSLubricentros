@@ -180,11 +180,30 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
               value: _selectedVehicle,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.directions_car_outlined),
+                hintText: 'Seleccioná un vehículo',
               ),
               items: widget.vehicles.map((vehicle) {
                 return DropdownMenuItem(
                   value: vehicle,
-                  child: Text(vehicle.displayName),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        vehicle.displayName,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '${vehicle.kmActual} km',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface
+                              .withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (vehicle) {

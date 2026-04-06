@@ -36,3 +36,24 @@ type VehicleResponse struct {
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
+
+// TransferOwnershipRequest represents the request body for transferring vehicle ownership.
+type TransferOwnershipRequest struct {
+	ToUserID uint   `json:"to_user_id" validate:"required"`
+	Reason   string `json:"reason,omitempty" validate:"max=255"`
+}
+
+// TransferOwnershipResponse represents the response after a successful transfer.
+type TransferOwnershipResponse struct {
+	TransferID    uint   `json:"transfer_id"`
+	VehicleID     uint   `json:"vehicle_id"`
+	FromUserID    uint   `json:"from_user_id"`
+	ToUserID      uint   `json:"to_user_id"`
+	TransferredAt string `json:"transferred_at"`
+	Status        string `json:"status"`
+}
+
+// VehicleTransferHistoryResponse represents the transfer history for a vehicle.
+type VehicleTransferHistoryResponse struct {
+	Transfers []TransferOwnershipResponse `json:"transfers"`
+}

@@ -16,4 +16,5 @@ type ProductRepository interface {
 	List(ctx context.Context, category *entity.ProductCategory, offset, limit int) ([]entity.Product, error)
 	ListLowStock(ctx context.Context) ([]entity.Product, error)
 	Count(ctx context.Context) (int64, error)
+	UpdateStock(ctx context.Context, id uint, quantity int) error
 }
