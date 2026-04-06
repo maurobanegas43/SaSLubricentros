@@ -73,6 +73,7 @@ func main() {
 	auditRepo := repository.NewAuditLogRepository(db)
 	passwordResetRepo := repository.NewPasswordResetTokenRepository(db)
 	vehicleTransferRepo := repository.NewVehicleTransferRepository(db)
+	productRepo := repository.NewProductRepository(db)
 
 	// Create usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, refreshRepo, jwtMgr)
@@ -80,13 +81,18 @@ func main() {
 	authUsecase.SetPasswordResetRepo(passwordResetRepo) // Set password reset repo
 	vehicleUsecase := usecase.NewVehicleUsecase(vehicleRepo, serviceRepo, vehicleTransferRepo, userRepo)
 	appointmentUsecase := usecase.NewAppointmentUsecase(appointmentRepo, vehicleRepo)
-	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo)
+	serviceAddendumRepo := repository.NewServiceAddendumRepository(db)
+	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo, serviceAddendumRepo)
+	productUsecase := usecase.NewProductUsecase(productRepo)
+	dashboardUsecase := usecase.NewDashboardUsecase(userRepo, vehicleRepo, appointmentRepo, serviceRepo, productRepo)
 
 	// Create handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
 	vehicleHandler := handler.NewVehicleHandler(vehicleUsecase)
 	appointmentHandler := handler.NewAppointmentHandler(appointmentUsecase)
 	serviceHandler := handler.NewServiceHandler(serviceUsecase)
+	productHandler := handler.NewProductHandler(productUsecase)
+	dashboardHandler := handler.NewDashboardHandler(dashboardUsecase)
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -137,13 +143,30 @@ func main() {
 		services := protected.Group("/services")
 		{
 			services.GET("/vehicle/:vehicleId", serviceHandler.GetByVehicleID)
+			services.POST("/:id/addendums", serviceHandler.CreateAddendum)
+			services.GET("/:id/addendums", serviceHandler.GetAddendums)
 		}
 
-		// Admin-only service creation
+		// Admin-only routes
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireRole(entity.RoleAdmin))
 		{
 			admin.POST("/services", serviceHandler.Create)
+			admin.GET("/products", productHandler.List)
+			admin.POST("/products", productHandler.Create)
+			admin.GET("/products/low-stock", productHandler.GetLowStock)
+			admin.GET("/dashboard/stats", dashboardHandler.GetStats)
+			admin.GET("/dashboard/low-stock", dashboardHandler.GetLowStock)
+		}
+
+		// Product routes (authenticated users)
+		products := protected.Group("/products")
+		{
+			products.GET("", productHandler.List)
+			products.GET("/:id", productHandler.GetByID)
+			products.PUT("/:id", productHandler.Update)
+			products.DELETE("/:id", productHandler.Delete)
+			products.PATCH("/:id/stock", productHandler.UpdateStock)
 		}
 
 		// Logout all (authenticated users)

@@ -109,3 +109,75 @@ func serviceRecordToResponse(r entity.ServiceRecord) dto.ServiceRecordResponse {
 		CreatedAt:        r.CreatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
+
+// CreateAddendum handles POST /services/:id/addendums
+func (h *ServiceHandler) CreateAddendum(c *gin.Context) {
+	serviceID, err := parseUintParam(c, "id")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Bad Request", "Invalid service ID")
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+
+	var req dto.CreateServiceAddendumRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	addendum, err := h.serviceUsecase.CreateAddendum(c.Request.Context(), usecase.CreateAddendumInput{
+		ServiceID: serviceID,
+		FieldName: req.FieldName,
+		OldValue:  req.OldValue,
+		NewValue:  req.NewValue,
+		Reason:    req.Reason,
+		CreatedBy: userID,
+	})
+	if err != nil {
+		if err.Error() == "service not found" {
+			response.NotFound(c, "Service not found")
+			return
+		}
+		response.Error(c, http.StatusBadRequest, "Bad Request", err.Error())
+		return
+	}
+
+	response.Created(c, serviceAddendumToResponse(*addendum))
+}
+
+// GetAddendums handles GET /services/:id/addendums
+func (h *ServiceHandler) GetAddendums(c *gin.Context) {
+	serviceID, err := parseUintParam(c, "id")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Bad Request", "Invalid service ID")
+		return
+	}
+
+	addendums, err := h.serviceUsecase.GetAddendumsByServiceID(c.Request.Context(), serviceID)
+	if err != nil {
+		response.InternalError(c)
+		return
+	}
+
+	responses := make([]dto.ServiceAddendumResponse, len(addendums))
+	for i, a := range addendums {
+		responses[i] = serviceAddendumToResponse(a)
+	}
+
+	response.JSON(c, http.StatusOK, responses)
+}
+
+// serviceAddendumToResponse converts an entity.ServiceAddendum to a DTO response.
+func serviceAddendumToResponse(a entity.ServiceAddendum) dto.ServiceAddendumResponse {
+	return dto.ServiceAddendumResponse{
+		ID:        a.ID,
+		ServiceID: a.ServiceID,
+		FieldName: a.FieldName,
+		OldValue:  a.OldValue,
+		NewValue:  a.NewValue,
+		Reason:    a.Reason,
+		CreatedBy: a.CreatedBy,
+		CreatedAt: a.CreatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
