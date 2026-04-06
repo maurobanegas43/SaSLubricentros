@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../constants/app_constants.dart';
 import '../../models/user.dart';
@@ -16,7 +18,85 @@ class VehicleDetailScreen extends StatefulWidget {
 }
 
 class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
+  final ImagePicker _picker = ImagePicker();
+  List<XFile> _vehiclePhotos = [];
   bool _isSearchingUsers = false;
+
+  Future<void> _addVehiclePhoto() async {
+    if (_vehiclePhotos.length >= 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Máximo 3 fotos por vehículo'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final source = await showDialog<ImageSource>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Agregar Foto'),
+        content: const Text('Seleccioná la fuente de la imagen'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, ImageSource.camera),
+            child: const Text('Cámara'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, ImageSource.gallery),
+            child: const Text('Galería'),
+          ),
+        ],
+      ),
+    );
+
+    if (source != null) {
+      try {
+        final XFile? image = await _picker.pickImage(
+          source: source,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+
+        if (image != null) {
+          setState(() {
+            _vehiclePhotos.add(image);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Foto agregada (${_vehiclePhotos.length}/3)'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al agregar foto: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removePhoto(int index) async {
+    final confirmed = await ConfirmationDialog.show(
+      context: context,
+      title: 'Eliminar Foto',
+      message: '¿Querés eliminar esta foto?',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+    );
+
+    if (confirmed) {
+      setState(() {
+        _vehiclePhotos.removeAt(index);
+      });
+    }
+  }
 
   Future<void> _generateReportPDF() async {
     // TODO: Implement PDF generation
@@ -29,7 +109,6 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   }
 
   Future<void> _sellVehicle() async {
-    // Show search user dialog
     final searchQuery = await showDialog<String>(
       context: context,
       builder: (context) => _SearchUserDialog(),
@@ -75,13 +154,11 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
           tooltip: AppStrings.backToHome,
         ),
         actions: [
-          // Generate Report Button
           IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
             onPressed: _generateReportPDF,
             tooltip: 'Generar Reporte PDF',
           ),
-          // Sell Vehicle Button
           IconButton(
             icon: const Icon(Icons.sell_outlined),
             onPressed: _sellVehicle,
@@ -165,6 +242,110 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
             const SizedBox(height: AppSpacing.xl),
 
+            // Vehicle Photos Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Fotos del Vehículo',
+                      style: theme.textTheme.headlineMedium),
+                  TextButton.icon(
+                    onPressed:
+                        _vehiclePhotos.length < 3 ? _addVehiclePhoto : null,
+                    icon: const Icon(Icons.add_a_photo, size: 18),
+                    label: Text('Agregar (${_vehiclePhotos.length}/3)'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+
+            // Photos Display
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: _vehiclePhotos.isEmpty
+                  ? Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                        border: Border.all(
+                          color:
+                              theme.colorScheme.outline.withValues(alpha: 0.3),
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 48,
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'Sin fotos agregadas',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            TextButton(
+                              onPressed: _addVehiclePhoto,
+                              child: const Text('Agregar primera foto'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SizedBox(
+                      height: 150,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _vehiclePhotos.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding:
+                                const EdgeInsets.only(right: AppSpacing.sm),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadii.md),
+                                  child: Image.file(
+                                    File(_vehiclePhotos[index].path),
+                                    width: 150,
+                                    height: 150,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close,
+                                        color: Colors.white),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black54,
+                                    ),
+                                    onPressed: () => _removePhoto(index),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+
+            const SizedBox(height: AppSpacing.xl),
+
             // Action Buttons
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -198,18 +379,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             // Historial Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(AppStrings.serviceHistory,
-                      style: theme.textTheme.headlineMedium),
-                  TextButton.icon(
-                    onPressed: _generateReportPDF,
-                    icon: const Icon(Icons.picture_as_pdf, size: 18),
-                    label: const Text('Ver PDF'),
-                  ),
-                ],
-              ),
+              child: Text(AppStrings.serviceHistory,
+                  style: theme.textTheme.headlineMedium),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -238,29 +409,6 @@ class _SearchUserDialogState extends State<_SearchUserDialog> {
   List<User> _users = [];
   bool _isLoading = false;
 
-  Future<void> _searchUsers() async {
-    if (_emailController.text.length < 2) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final apiClient = ApiClient();
-      final response =
-          await apiClient.get('/users/search?q=${_emailController.text}');
-
-      if (response.statusCode == 200) {
-        final data = response.body;
-        // Parse users from response - simplified
-        setState(() {
-          // Will need to parse JSON
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -283,7 +431,6 @@ class _SearchUserDialogState extends State<_SearchUserDialog> {
               hintText: 'Ej: juan@ejemplo.com',
               prefixIcon: Icon(Icons.search),
             ),
-            onSubmitted: (_) => _searchUsers(),
           ),
           if (_isLoading) ...[
             const SizedBox(height: AppSpacing.md),
