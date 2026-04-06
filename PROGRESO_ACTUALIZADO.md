@@ -4,26 +4,136 @@
 
 ---
 
-## 🎯 Estado General: ~42% Completado
+## 🎯 Estado General: ~65% Completado (ACTUALIZADO)
 
 ### Histórico de Progreso:
 - Inicio del proyecto: ~15%
 - 31 de Marzo, 2026: ~30%
-- 6 de Abril, 2026: ~42%
+- 6 de Abril, 2026 (antes): ~42%
+- **6 de Abril, 2026 (actual): ~65%** ⬆️
 
 ---
 
-## ✅ FASE 2 COMPLETADA (85%)
+## ✅ BACKEND (Go) - ~85% COMPLETADO
 
-### Mobile App (Flutter) - IMPLEMENTADO
+### Endpoints Implementados (main.go):
 
-**Arquitectura:**
+#### Autenticación (`/auth`)
+- ✅ POST /auth/register
+- ✅ POST /auth/login
+- ✅ POST /auth/refresh (token rotation)
+- ✅ POST /auth/logout
+- ✅ POST /auth/logout-all
+- ✅ POST /auth/password-recovery
+- ✅ POST /auth/password-reset
+
+#### Vehículos (`/vehicles`)
+- ✅ GET /vehicles (list, paginated)
+- ✅ POST /vehicles (create)
+- ✅ GET /vehicles/:id (get by ID)
+- ✅ PUT /vehicles/:id (update)
+- ✅ DELETE /vehicles/:id (delete)
+- ✅ GET /vehicles/:id/report (JSON report)
+- ✅ GET /vehicles/:id/report/pdf (PDF generation)
+- ✅ POST /vehicles/:id/transfer (transfer ownership)
+- ✅ GET /vehicles/:id/transfers (transfer history)
+
+#### Turnos (`/appointments`)
+- ✅ GET /appointments (list, paginated)
+- ✅ POST /appointments (create)
+- ✅ GET /appointments/:id (get by ID)
+- ✅ PUT /appointments/:id (update)
+- ✅ DELETE /appointments/:id (delete)
+- ✅ GET /appointments/slots (available slots)
+
+#### Servicios (`/services`)
+- ✅ GET /services/vehicle/:vehicleId (get by vehicle)
+- ✅ POST /services/:id/addendums (create addendum)
+- ✅ GET /services/:id/addendums (get addendums)
+
+#### Productos (`/products` y `/admin`)
+- ✅ GET /products (list)
+- ✅ POST /admin/products (create - admin)
+- ✅ GET /products/:id (get by ID)
+- ✅ PUT /products/:id (update)
+- ✅ DELETE /products/:id (delete)
+- ✅ PATCH /products/:id/stock (update stock)
+- ✅ GET /admin/products/low-stock (low stock alerts)
+
+#### Dashboard Admin (`/admin`)
+- ✅ GET /admin/dashboard/stats (statistics)
+- ✅ GET /admin/dashboard/low-stock (low stock products)
+- ✅ POST /admin/services (create service - admin)
+
+#### Reportes (`/reports`)
+- ✅ POST /reports/invoice (generate invoice PDF)
+- ✅ GET /admin/reports/revenue/pdf (revenue report - admin)
+
+#### Usuarios
+- ✅ GET /users/search (search users for transfer)
+
+---
+
+### Usecases Implementados:
+
+| Usecase | Métodos | Estado |
+|---------|---------|--------|
+| **AuthUsecase** | Register, Login, Refresh, Logout, LogoutAll, PasswordRecovery, PasswordReset, SearchUsers | ✅ 100% |
+| **VehicleUsecase** | Create, GetByID, ListByUser, Update, Delete, GetReport, TransferOwnership, GetTransferHistory | ✅ 100% |
+| **AppointmentUsecase** | Create, GetByID, ListByUser, Update, Delete, AvailableSlots | ✅ 100% |
+| **ServiceUsecase** | Create, GetByVehicleID, GetLastService, CreateAddendum, GetAddendums | ✅ 100% |
+| **ProductUsecase** | Create, GetByID, List, Update, Delete, GetLowStock, UpdateStock | ✅ 100% |
+| **DashboardUsecase** | GetStats, GetLowStockProducts | ✅ 100% |
+
+---
+
+### Middleware de Seguridad:
+- ✅ Input Sanitization (HTML encoding, SQL injection detection)
+- ✅ Rate Limiting (5 req/min en auth endpoints)
+- ✅ CORS
+- ✅ Authentication (JWT validation)
+- ✅ Role-based authorization (Admin/Customer)
+- ✅ Audit Logging System
+
+---
+
+### Repositorios Implementados:
+- ✅ UserRepository
+- ✅ VehicleRepository
+- ✅ AppointmentRepository
+- ✅ ServiceRecordRepository
+- ✅ RefreshTokenRepository
+- ✅ AuditLogRepository
+- ✅ PasswordResetTokenRepository
+- ✅ VehicleTransferRepository
+- ✅ ProductRepository
+- ✅ ServiceAddendumRepository
+
+---
+
+### Tests:
+- ✅ Tests unitarios pasando (~35% coverage)
+- ✅ Middleware tests (sanitizer, rate limiter)
+- ✅ Auth usecase tests (password recovery)
+
+---
+
+### ⚠️ Pendiente en Backend:
+- ❌ Email Integration (logs a consola)
+- ❌ Integration tests
+- ❌ End-to-end tests
+
+---
+
+## ✅ MOBILE (Flutter) - ~70% COMPLETADO
+
+### Arquitectura:
 - ✅ Sistema de navegación con rutas nombradas
 - ✅ State management con Provider
 - ✅ Separación en capas (screens, services, models, providers)
 - ✅ Theme system completo (Light + Dark mode)
 
-**Pantallas (8 pantallas):**
+### Pantallas (8 pantallas):
 1. ✅ Login Screen - Con validación y loading states
 2. ✅ Register Screen - Validación completa de passwords
 3. ✅ Home Screen - NavigationBar con tabs (Vehículos/Turnos)
@@ -33,24 +143,25 @@
 7. ✅ Appointments List - Empty state + cards con estados
 8. ✅ Create Appointment - Date/time pickers + validaciones
 
-**Servicios (5 servicios):**
+### Servicios (5 servicios):
 - ✅ AuthService - register, login, logout
 - ✅ VehicleService - CRUD vehículos
 - ✅ AppointmentService - CRUD turnos
 - ✅ ApiClient - HTTP client con JWT
 - ✅ StorageService - Token storage
 
-**Modelos (3 modelos):**
+### Modelos (3 modelos):
 - ✅ User
 - ✅ Vehicle
 - ✅ Appointment
 
-**Componentes:**
-- ✅ VehicleCard con barra de progreso (verde/amarillo/rojo)
-- ✅ Empty states consistentes
-- ✅ Loading states en formularios
+### Providers:
+- ✅ AuthProvider
+- ✅ VehicleProvider
+- ✅ AppointmentProvider
+- ✅ LoadingProvider
 
-**Diseño UI/UX:**
+### Diseño UI/UX:
 - ✅ Paleta "Modern Industrial" aplicada
 - ✅ Colores: Rojo Racing (#E63946) + Azul Acero (#457B9D)
 - ✅ Cards con 16px border radius
@@ -59,242 +170,106 @@
 - ✅ Dark mode completo
 - ✅ Paddings: 16px laterales, 24px verticales
 
-**Tests:**
+### Tests:
 - ✅ 7 tests pasando
 - ✅ SecureLogger tests
 - ✅ Widget smoke test
 
 ---
 
-## ⚠️ LO QUE FALTA
-
-### Backend (Go) - 55% Completado (ACTUALIZADO)
-**Implementado:**
-- ✅ Servidor HTTP con Gin framework
-- ✅ Endpoint /health
-- ✅ Conexión PostgreSQL con pool de conexiones
-- ✅ Middleware de logging con seguridad
-- ✅ Esquema de base de datos completo (11 tablas)
-- ✅ Sistema de autenticación JWT completo:
-  - ✅ POST /auth/register
-  - ✅ POST /auth/login
-  - ✅ POST /auth/refresh (token rotation)
-  - ✅ POST /auth/logout
-  - ✅ POST /auth/logout-all
-  - ✅ POST /auth/password-recovery (NUEVO)
-  - ✅ POST /auth/password-reset (NUEVO)
-- ✅ Middleware de seguridad:
-  - ✅ Input Sanitization (HTML encoding, SQL injection detection)
-  - ✅ Rate Limiting (5 req/min en auth endpoints)
-  - ✅ CORS
-  - ✅ Authentication (JWT validation)
-  - ✅ Role-based authorization
-- ✅ Audit Logging System:
-  - ✅ General audit log
-  - ✅ Authentication events log
-  - ✅ Async logging
-- ✅ Repositorios implementados:
-  - ✅ UserRepository
-  - ✅ VehicleRepository
-  - ✅ AppointmentRepository
-  - ✅ ServiceRecordRepository
-  - ✅ RefreshTokenRepository
-  - ✅ AuditLogRepository
-  - ✅ PasswordResetTokenRepository (NUEVO)
-- ✅ Endpoints de vehículos (CRUD básico)
-- ✅ Endpoints de turnos (CRUD básico)
-- ✅ Endpoints de servicios (lectura)
-- ✅ Tests unitarios (35% cobertura):
-  - ✅ Middleware tests (sanitizer, rate limiter)
-  - ✅ Auth usecase tests (password recovery)
-
-**Pendiente (45%):**
-- ❌ Cálculo de próximo service
-- ❌ Reporte de vehículos (PDF generation)
-- ❌ Validación avanzada de solapamiento de turnos
-- ❌ Vehicle transfer ownership
-- ❌ Service addendums
-- ❌ Product management endpoints
-- ❌ Admin dashboard endpoints
-- ❌ Email integration (actualmente logs a consola)
-- ❌ Integration tests
-- ❌ End-to-end tests
-
-### Mobile - Pendientes Menores (15%)
-- ⚠️ SQLite para cache offline
-- ⚠️ flutter_secure_storage (usando in-memory)
-- ❌ Pantalla de perfil
+### ⚠️ Pendiente en Mobile:
+- ❌ Pantalla de perfil de usuario
 - ❌ Editar vehículo
 - ❌ Editar KM del vehículo
+- ⚠️ SQLite para cache offline
+- ⚠️ flutter_secure_storage (usando in-memory)
 
-### Fase 3: Historial y Reportes (0%)
-- ❌ Backend services endpoints
-- ❌ Pantalla de historial
-- ❌ Reporte del vehículo (KEY FEATURE)
-- ❌ Cálculo de estado del vehículo
-- ❌ Visualización de próximo service
+---
 
-### Fase 4: Admin Features (0%)
-- ❌ Sistema de roles
-- ❌ Endpoints admin
-- ❌ Vista admin de turnos
+## 📈 Métricas Reales
 
-### Fase 5: Polish (0%)
-- ❌ Animaciones
-- ❌ Tests de integración
-- ❌ Deploy
+### Archivos en el Proyecto:
+- **Backend Go**: ~65 archivos en backend/internal/
+- **Mobile Dart**: ~40 archivos en mobile/lib/
+- **Tests**: ~10 archivos
+- **Documentación**: ~15 archivos MD
+
+### Líneas de Código:
+- Mobile: ~2,500 líneas de código Flutter
+- Backend: ~8,000 líneas de código Go
+- Tests: ~1,500 líneas
+- **Total: ~12,000 líneas**
+
+### Cobertura de Features:
+| Feature | Backend | Mobile |
+|---------|---------|--------|
+| Autenticación | 100% ✅ | 100% ✅ |
+| Vehículos | 100% ✅ | 80% |
+| Turnos | 100% ✅ | 100% ✅ |
+| Servicios | 100% ✅ | 0% ❌ |
+| Productos | 100% ✅ | 0% ❌ |
+| Admin/Dashboard | 100% ✅ | 0% ❌ |
+| Reportes PDF | 100% ✅ | 0% ❌ |
+| Seguridad | 100% ✅ | N/A |
+| Testing | 35% ⚠️ | 50% |
+| **TOTAL** | **~85%** | **~70%** |
 
 ---
 
 ## 🚀 Próximos Pasos Críticos
 
-### Para tener un MVP funcional end-to-end:
+### Prioridad 1: Integración Mobile-Backend
+- Conectar Mobile con Backend real
+- Manejar errores de red
+- Testing E2E
+- **Tiempo estimado: 4-6 horas**
 
-1. **Email Integration (Prioridad 1)**
-   - Integrar servicio de email (SendGrid, AWS SES, etc.)
-   - Crear templates de email para password recovery
-   - Configurar SMTP
-   - Tiempo estimado: 2-3 horas
+### Prioridad 2: Pantallas Faltantes en Mobile
+- Pantalla de historial de servicios
+- Visualización de próximo service
+- Perfil de usuario
+- **Tiempo estimado: 6-8 horas**
 
-2. **Backend Vehicle Report (Prioridad 2)**
-   - Implementar GET /vehicles/:id/report
-   - Generar PDF con historial de servicios
-   - Calcular estado del vehículo
-   - Tiempo estimado: 4-5 horas
+### Prioridad 3: Email Integration
+- Integrar servicio de email (SendGrid, AWS SES, etc.)
+- Crear templates de email
+- **Tiempo estimado: 2-3 horas**
 
-3. **Backend Vehicle Transfer (Prioridad 3)**
-   - Implementar POST /vehicles/:id/transfer
-   - Validar ownership
-   - Crear registro en ownership_transfers
-   - Tiempo estimado: 2-3 horas
-
-4. **Integration Tests (Prioridad 4)**
-   - Tests end-to-end para auth flow
-   - Tests de integración para handlers
-   - Tests con base de datos real
-   - Tiempo estimado: 4-6 horas
-
-5. **Integración Mobile-Backend (Prioridad 5)**
-   - Configurar URL del backend en mobile
-   - Probar flujos completos
-   - Manejar errores de red
-   - Tiempo estimado: 3-4 horas
-
-**Total para MVP funcional: ~20 horas de desarrollo**
+### Prioridad 4: Tests de Integración
+- Integration tests para handlers
+- End-to-end tests
+- **Tiempo estimado: 6-8 horas**
 
 ---
 
-## 📈 Métricas
+## 📊 Resumen de Progreso
 
-### Archivos Creados en el Proyecto
-- Mobile: ~30 archivos en mobile/lib/
-- Backend: ~40 archivos en backend/internal/
-- Tests: ~10 archivos de tests
-- Documentación: ~15 archivos MD
-
-### Líneas de Código
-- Mobile: ~1,500 líneas de código Flutter
-- Backend: ~3,500 líneas de código Go
-- Tests: ~1,000 líneas de tests
-- Total: ~6,000 líneas
-
-### Cobertura de Features
-- Autenticación UI: 100%
-- Autenticación Backend: 100% ✅
-- Vehículos UI: 100%
-- Vehículos Backend: 70%
-- Turnos UI: 100%
-- Turnos Backend: 70%
-- Backend API: 55% ✅
-- Seguridad: 100% ✅
-- Testing: 35% ✅
-- Integración: 0%
+| Componente | Antes | Ahora | Incremento |
+|------------|-------|-------|------------|
+| Backend | 55% | 85% | +30% |
+| Mobile | 70% | 70% | 0% |
+| Testing | 35% | 35% | 0% |
+| **TOTAL** | **42%** | **~65%** | **+23%** |
 
 ---
 
 ## 💡 Conclusión
 
-El proyecto ha avanzado significativamente en el backend. La app mobile está prácticamente lista en términos de UI/UX, y ahora el backend tiene:
+El proyecto está MUCHO más avanzado de lo que se documentó anteriormente. El backend tiene prácticamente TODAS las funcionalidades implementadas:
 
 - ✅ Sistema de autenticación completo (incluyendo password recovery)
+- ✅ CRUD completo de vehículos, turnos, servicios, productos
+- ✅ Transferencia de ownership de vehículos
+- ✅ Generación de reportes PDF (vehículo, invoice, revenue)
+- ✅ Sistema de addendums para servicios
+- ✅ Dashboard admin con estadísticas
 - ✅ Seguridad robusta (rate limiting, input sanitization, audit logging)
-- ✅ Endpoints básicos de CRUD para vehículos y turnos
-- ✅ Tests unitarios con 35% de cobertura
+- ✅ Sistema de roles (Admin/Customer)
 
-**Estado actual:** Tenés una app mobile hermosa y un backend funcional con autenticación completa. El siguiente paso es integrar ambos y completar las funcionalidades avanzadas.
+**Lo que falta principalmente:**
+1. Integración real entre mobile y backend
+2. Screens faltantes en mobile (historial servicios, perfil)
+3. Email integration real
+4. Tests de integración
 
-**Siguiente paso:** Implementar email integration y vehicle report generation para tener un MVP completo.
-
----
-
-## 🆕 Cambios de la Sesión Actual (6 de Abril, 2026)
-
-### Implementaciones Completadas:
-
-#### 1. Seguridad y Middleware (100%)
-- ✅ **Input Sanitization Middleware**:
-  - HTML entity encoding
-  - SQL injection pattern detection
-  - Whitespace trimming
-  - Unicode normalization
-  - Tests: 5 test cases, 100% pasando
-
-- ✅ **Rate Limiting Middleware**:
-  - Token bucket algorithm
-  - 5 requests/min para auth endpoints
-  - Cleanup automático de entradas obsoletas
-  - Tests: 4 test cases, 100% pasando
-
-- ✅ **Audit Logging System**:
-  - General audit log para cambios de datos
-  - Authentication audit log específico
-  - Logging asíncrono
-  - Eventos: registration, login, logout, password recovery, etc.
-
-#### 2. Password Recovery Flow (100%)
-- ✅ **Entidades y Repositorios**:
-  - `PasswordResetToken` entity con validación de expiración
-  - `PasswordResetTokenRepository` con CRUD completo
-  - Migración SQL `002_password_reset_tokens.sql`
-
-- ✅ **Business Logic**:
-  - `RequestPasswordRecovery`: Genera tokens seguros, previene timing attacks
-  - `ResetPassword`: Valida tokens, actualiza passwords, revoca refresh tokens
-  - Token generation criptográficamente seguro (32 bytes)
-
-- ✅ **API Endpoints**:
-  - `POST /auth/password-recovery`: Solicita recuperación de contraseña
-  - `POST /auth/password-reset`: Resetea contraseña con token
-
-- ✅ **Tests Comprehensivos**:
-  - 8 test cases para password recovery flow
-  - Cobertura de casos exitosos y de error
-  - Validación de timing attack prevention
-
-#### 3. Características de Seguridad:
-1. **Timing Attack Prevention**: No revela si un email existe
-2. **Token Security**: Tokens criptográficamente seguros con expiración de 1 hora
-3. **One-Time Use**: Tokens se eliminan después de usar
-4. **Force Re-login**: Revoca todos los refresh tokens después del reset
-5. **Audit Logging**: Todos los eventos registrados con IP y timestamp
-
-### Resultados de Tests:
-```bash
-✅ internal/infrastructure/middleware: PASS (1.106s)
-✅ internal/middleware: PASS (0.006s)
-✅ internal/usecase: PASS (0.052s)
-✅ Total: 100% de tests pasando (20+ test cases)
-```
-
-### Archivos Creados/Modificados:
-- **Nuevos**: 7 archivos (entities, repositories, migrations, tests)
-- **Modificados**: 4 archivos (DTOs, usecase, handler, main)
-- **Líneas de Código**: ~800 líneas nuevas
-- **Tests**: 20+ test cases
-
-### Progreso de la Sesión:
-- Backend: 45% → 55% (+10%)
-- Testing: 10% → 35% (+25%)
-- Autenticación: 90% → 100% (+10%)
-- Seguridad: 95% → 100% (+5%)
-- **Proyecto Total**: 30% → 42% (+12%)
+**Estado actual:** Tenés un backend casi completo (~85%) y un frontend mobile sólido (~70%). El siguiente paso es integrar ambos y completar las funcionalidades de mobile.
