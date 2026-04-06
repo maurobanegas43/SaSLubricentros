@@ -140,3 +140,53 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 
 	response.NoContent(c)
 }
+
+
+// RequestPasswordRecovery handles POST /auth/password-recovery
+func (h *AuthHandler) RequestPasswordRecovery(c *gin.Context) {
+	var req dto.PasswordRecoveryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	if err := h.authUsecase.RequestPasswordRecovery(c.Request.Context(), usecase.PasswordRecoveryInput{
+		Email: req.Email,
+	}); err != nil {
+		// Always return success to prevent email enumeration
+		// Even if there's an error, we don't want to reveal if the email exists
+		response.JSON(c, http.StatusOK, dto.MessageResponse{
+			Message: "If the email exists, a password recovery link has been sent",
+		})
+		return
+	}
+
+	response.JSON(c, http.StatusOK, dto.MessageResponse{
+		Message: "If the email exists, a password recovery link has been sent",
+	})
+}
+
+// ResetPassword handles POST /auth/password-reset
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req dto.PasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	if err := h.authUsecase.ResetPassword(c.Request.Context(), usecase.PasswordResetInput{
+		Token:       req.Token,
+		NewPassword: req.NewPassword,
+	}); err != nil {
+		if err == repository.ErrInvalidInput {
+			response.Error(c, http.StatusBadRequest, "Bad Request", "Invalid or expired token")
+			return
+		}
+		response.InternalError(c)
+		return
+	}
+
+	response.JSON(c, http.StatusOK, dto.MessageResponse{
+		Message: "Password has been reset successfully",
+	})
+}

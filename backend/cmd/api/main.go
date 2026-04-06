@@ -14,6 +14,7 @@ import (
 	"github.com/lubricentros/api/internal/database/migrations"
 	"github.com/lubricentros/api/internal/domain/entity"
 	"github.com/lubricentros/api/internal/handler"
+	infraMiddleware "github.com/lubricentros/api/internal/infrastructure/middleware"
 	"github.com/lubricentros/api/internal/middleware"
 	"github.com/lubricentros/api/internal/repository"
 	"github.com/lubricentros/api/internal/usecase"
@@ -56,6 +57,12 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
+	
+	// Add CORS middleware
+	r.Use(infraMiddleware.CORS())
+	
+	// Add input sanitization middleware
+	r.Use(infraMiddleware.InputSanitizer())
 
 	// Create repositories
 	userRepo := repository.NewUserRepository(db)
@@ -63,9 +70,13 @@ func main() {
 	appointmentRepo := repository.NewAppointmentRepository(db)
 	serviceRepo := repository.NewServiceRecordRepository(db)
 	refreshRepo := repository.NewRefreshTokenRepository(db)
+	auditRepo := repository.NewAuditLogRepository(db)
+	passwordResetRepo := repository.NewPasswordResetTokenRepository(db)
 
 	// Create usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, refreshRepo, jwtMgr)
+	authUsecase.SetAuditRepo(auditRepo) // Set audit repo to avoid circular dependency
+	authUsecase.SetPasswordResetRepo(passwordResetRepo) // Set password reset repo
 	vehicleUsecase := usecase.NewVehicleUsecase(vehicleRepo, serviceRepo)
 	appointmentUsecase := usecase.NewAppointmentUsecase(appointmentRepo, vehicleRepo)
 	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo)
@@ -81,13 +92,16 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// Public auth routes
+	// Public auth routes (with rate limiting)
 	auth := r.Group("/auth")
+	auth.Use(infraMiddleware.RateLimit(5)) // 5 requests per minute
 	{
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/refresh", authHandler.Refresh)
 		auth.POST("/logout", authHandler.Logout)
+		auth.POST("/password-recovery", authHandler.RequestPasswordRecovery)
+		auth.POST("/password-reset", authHandler.ResetPassword)
 	}
 
 	// Protected routes (require authentication)

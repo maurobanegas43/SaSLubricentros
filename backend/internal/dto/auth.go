@@ -37,3 +37,19 @@ type UserResponse struct {
 	IsActive  bool   `json:"is_active"`
 	CreatedAt string `json:"created_at"`
 }
+
+// PasswordRecoveryRequest represents the request to initiate password recovery
+type PasswordRecoveryRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+// PasswordResetRequest represents the request to reset password with token
+type PasswordResetRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=8,max=72"`
+}
+
+// MessageResponse represents a simple message response
+type MessageResponse struct {
+	Message string `json:"message"`
+}
