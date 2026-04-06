@@ -123,6 +123,11 @@ func (uc *ServiceUsecase) GetLastServiceByVehicleID(ctx context.Context, vehicle
 	return record, nil
 }
 
+// GetServiceByID retrieves a service record by ID.
+func (uc *ServiceUsecase) GetServiceByID(ctx context.Context, id uint) (*entity.ServiceRecord, error) {
+	return uc.serviceRepo.GetByID(ctx, id)
+}
+
 // CreateAddendumInput holds the input for creating a service addendum.
 type CreateAddendumInput struct {
 	ServiceID uint

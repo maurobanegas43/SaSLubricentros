@@ -85,6 +85,7 @@ func main() {
 	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo, serviceAddendumRepo)
 	productUsecase := usecase.NewProductUsecase(productRepo)
 	dashboardUsecase := usecase.NewDashboardUsecase(userRepo, vehicleRepo, appointmentRepo, serviceRepo, productRepo)
+	reportHandler := handler.NewReportHandler(vehicleUsecase, serviceUsecase)
 
 	// Create handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -124,6 +125,7 @@ func main() {
 			vehicles.PUT("/:id", vehicleHandler.Update)
 			vehicles.DELETE("/:id", vehicleHandler.Delete)
 			vehicles.GET("/:id/report", vehicleHandler.GetReport)
+			vehicles.GET("/:id/report/pdf", reportHandler.GenerateVehiclePDF)
 			vehicles.POST("/:id/transfer", vehicleHandler.TransferOwnership)
 			vehicles.GET("/:id/transfers", vehicleHandler.GetTransferHistory)
 		}
@@ -167,6 +169,19 @@ func main() {
 			products.PUT("/:id", productHandler.Update)
 			products.DELETE("/:id", productHandler.Delete)
 			products.PATCH("/:id/stock", productHandler.UpdateStock)
+		}
+
+		// Report routes
+		reports := protected.Group("/reports")
+		{
+			reports.POST("/invoice", reportHandler.GenerateInvoicePDF)
+		}
+
+		// Admin report routes
+		admin = protected.Group("/admin")
+		admin.Use(middleware.RequireRole(entity.RoleAdmin))
+		{
+			admin.GET("/reports/revenue/pdf", reportHandler.GenerateRevenuePDF)
 		}
 
 		// Logout all (authenticated users)
