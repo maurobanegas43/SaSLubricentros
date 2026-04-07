@@ -5,8 +5,9 @@ Sistema para digitalizar lubricentros en Argentina.
 ## Stack
 
 - **Mobile**: Flutter + SQLite
-- **Backend**: Go + PostgreSQL
+- **Backend**: Go + Supabase (PostgreSQL)
 - **API**: REST
+- **Database**: Supabase (cloud) - ejecutar `docs/MIGRATION_SUPABASE.sql` en el dashboard
 
 ## Estructura del Proyecto
 
