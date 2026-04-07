@@ -300,7 +300,7 @@ func (r *ServicePartUsedRepositoryImpl) CreateBatch(ctx context.Context, parts [
 	if err != nil {
 		return WrapError(err, "service part create batch: begin tx")
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {
