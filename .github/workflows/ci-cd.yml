@@ -79,8 +79,7 @@ jobs:
           file: ./Dockerfile
           push: false
           tags: lubricentros/api:latest
-          cache-from: type=registry
-          cache-to: type=inline
+          load: true
 
   # Mobile Jobs (Flutter)
   mobile-analysis:
