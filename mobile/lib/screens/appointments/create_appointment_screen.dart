@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/appointment_provider.dart';
 import '../../models/vehicle.dart';
+import '../../models/appointment.dart';
 import '../../widgets/common/animated_button.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../constants/app_constants.dart';
@@ -25,7 +26,7 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
   Vehicle? _selectedVehicle;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  String _tipoService = ServiceTypes.all.first;
+  AppointmentType _tipoService = AppointmentType.cambioAceite;
 
   @override
   void initState() {
@@ -219,14 +220,17 @@ class _CreateAppointmentScreenState extends State<CreateAppointmentScreen> {
             Text(AppStrings.labelServiceType,
                 style: theme.textTheme.labelLarge),
             const SizedBox(height: AppSpacing.xs),
-            DropdownButtonFormField<String>(
+            DropdownButtonFormField<AppointmentType>(
               value: _tipoService,
               focusNode: _serviceTypeFocus,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.build_outlined),
               ),
-              items: ServiceTypes.all.map((tipo) {
-                return DropdownMenuItem(value: tipo, child: Text(tipo));
+              items: AppointmentType.values.map((tipo) {
+                return DropdownMenuItem(
+                  value: tipo,
+                  child: Text(tipo.displayName),
+                );
               }).toList(),
               onChanged: (tipo) {
                 if (tipo != null) {

@@ -52,12 +52,14 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
               actionLabel: AppStrings.newAppointment,
               onAction: () {
                 final vehicles = context.read<VehicleProvider>().vehicles;
-                Navigator.pushNamed(context, AppRoute.createAppointment, arguments: vehicles);
+                Navigator.pushNamed(context, AppRoute.createAppointment,
+                    arguments: vehicles);
               },
             );
           }
 
-          final sorted = [...appointments]..sort((a, b) => a.fecha.compareTo(b.fecha));
+          final sorted = [...appointments]
+            ..sort((a, b) => a.fecha.compareTo(b.fecha));
 
           return RefreshIndicator(
             onRefresh: () => appointmentProvider.refresh(),
@@ -78,7 +80,8 @@ class _AppointmentsListScreenState extends State<AppointmentsListScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           final vehicles = context.read<VehicleProvider>().vehicles;
-          Navigator.pushNamed(context, AppRoute.createAppointment, arguments: vehicles);
+          Navigator.pushNamed(context, AppRoute.createAppointment,
+              arguments: vehicles);
         },
         icon: const Icon(Icons.add),
         label: const Text(AppStrings.newAppointment),
@@ -97,10 +100,14 @@ class _AppointmentCard extends StatelessWidget {
         return Colors.orange;
       case AppointmentStatus.confirmed:
         return Colors.blue;
+      case AppointmentStatus.inProgress:
+        return Colors.amber;
       case AppointmentStatus.completed:
         return Colors.green;
       case AppointmentStatus.cancelled:
         return Colors.grey;
+      case AppointmentStatus.noShow:
+        return Colors.red;
     }
   }
 
@@ -110,10 +117,14 @@ class _AppointmentCard extends StatelessWidget {
         return AppStrings.statusPending;
       case AppointmentStatus.confirmed:
         return AppStrings.statusConfirmed;
+      case AppointmentStatus.inProgress:
+        return 'En Progreso';
       case AppointmentStatus.completed:
         return AppStrings.statusCompleted;
       case AppointmentStatus.cancelled:
         return AppStrings.statusCancelled;
+      case AppointmentStatus.noShow:
+        return 'No Asistió';
     }
   }
 
@@ -134,12 +145,13 @@ class _AppointmentCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    appointment.tipoService,
+                    appointment.tipoService.displayName,
                     style: theme.textTheme.headlineMedium,
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -157,7 +169,8 @@ class _AppointmentCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: theme.colorScheme.secondary),
+                Icon(Icons.calendar_today,
+                    size: 16, color: theme.colorScheme.secondary),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
                   dateFormat.format(appointment.fecha),

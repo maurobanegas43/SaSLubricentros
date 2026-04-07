@@ -101,6 +101,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Mi Perfil',
+            onPressed: () => Navigator.pushNamed(context, AppRoute.profile),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_outlined),
             tooltip: AppStrings.logoutTitle,
             onPressed: _handleLogout,
@@ -507,7 +512,7 @@ class _NextAppointmentCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              appointment.tipoService,
+              appointment.tipoService.displayName,
               style: theme.textTheme.headlineMedium,
             ),
             const SizedBox(height: AppSpacing.xxs),
@@ -536,10 +541,14 @@ class _AppointmentCard extends StatelessWidget {
         return Colors.orange;
       case AppointmentStatus.confirmed:
         return Colors.blue;
+      case AppointmentStatus.inProgress:
+        return Colors.amber;
       case AppointmentStatus.completed:
         return Colors.green;
       case AppointmentStatus.cancelled:
         return Colors.grey;
+      case AppointmentStatus.noShow:
+        return Colors.red;
     }
   }
 
@@ -549,10 +558,14 @@ class _AppointmentCard extends StatelessWidget {
         return AppStrings.statusPending;
       case AppointmentStatus.confirmed:
         return AppStrings.statusConfirmed;
+      case AppointmentStatus.inProgress:
+        return 'En Progreso';
       case AppointmentStatus.completed:
         return AppStrings.statusCompleted;
       case AppointmentStatus.cancelled:
         return AppStrings.statusCancelled;
+      case AppointmentStatus.noShow:
+        return 'No Asistió';
     }
   }
 
@@ -573,7 +586,7 @@ class _AppointmentCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    appointment.tipoService,
+                    appointment.tipoService.displayName,
                     style: theme.textTheme.headlineMedium,
                   ),
                 ),
