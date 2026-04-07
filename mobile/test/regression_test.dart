@@ -100,10 +100,12 @@ void main() {
           'user_id': 1,
           'vehicle_id': 1,
           'fecha': '2024-06-01T10:00:00Z',
+          'slot_end': '2024-06-01T11:00:00Z',
           'status': 'pending',
           'tipo_service': 'cambio_aceite',
           'observaciones': 'Test note',
           'created_at': '2024-01-01T00:00:00Z',
+          'updated_at': '2024-01-01T00:00:00Z',
         };
 
         final appointment = Appointment.fromJson(json);
@@ -111,19 +113,23 @@ void main() {
         expect(appointment.id, 1);
         expect(appointment.vehicleId, 1);
         expect(appointment.status, AppointmentStatus.pending);
-        expect(appointment.tipoService, 'cambio_aceite');
+        expect(appointment.tipoService, AppointmentType.cambioAceite);
       });
 
       test('Appointment status conversion', () {
-        expect(AppointmentStatus.values.length, 4);
+        expect(AppointmentStatus.values.length, 6);
         expect(
             AppointmentStatus.values.contains(AppointmentStatus.pending), true);
         expect(AppointmentStatus.values.contains(AppointmentStatus.confirmed),
+            true);
+        expect(AppointmentStatus.values.contains(AppointmentStatus.inProgress),
             true);
         expect(AppointmentStatus.values.contains(AppointmentStatus.completed),
             true);
         expect(AppointmentStatus.values.contains(AppointmentStatus.cancelled),
             true);
+        expect(
+            AppointmentStatus.values.contains(AppointmentStatus.noShow), true);
       });
     });
   });
