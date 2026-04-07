@@ -19,7 +19,10 @@ class AuthResult {
 
 class AuthService {
   final ApiClient _apiClient;
-  static const bool _devMode = true; // Cambiar a false en producción
+
+  // Toggle para desarrollo/producción
+  // IMPORTANTE: Cambiar a false en producción
+  static const bool devMode = false;
 
   AuthService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
@@ -30,7 +33,7 @@ class AuthService {
     String? phone,
   }) async {
     // DEV MODE: Simular registro exitoso
-    if (_devMode) {
+    if (devMode) {
       await Future.delayed(const Duration(milliseconds: 500));
       final mockUser = User(
         id: 1,
@@ -43,6 +46,7 @@ class AuthService {
       return AuthResult(success: true, token: mockToken, user: mockUser);
     }
 
+    // Modo producción: llamar al backend real
     try {
       final response = await _apiClient.post(
         '/auth/register',
@@ -58,14 +62,17 @@ class AuthService {
         final data = jsonDecode(response.body);
         final token = data['token'] as String;
         final user = User.fromJson(data['user']);
-        
+
         _apiClient.setToken(token);
-        SecureLogger.info('User registered successfully', data: {'email': email});
-        
+        SecureLogger.info('User registered successfully',
+            data: {'email': email});
+
         return AuthResult(success: true, token: token, user: user);
       } else {
-        final error = jsonDecode(response.body)['error'] ?? 'Error al registrar';
-        SecureLogger.error('Registration failed', data: {'email': email, 'status': response.statusCode});
+        final errorData = jsonDecode(response.body);
+        final error = errorData['error'] ?? 'Error al registrar';
+        SecureLogger.error('Registration failed',
+            data: {'email': email, 'status': response.statusCode});
         return AuthResult(success: false, error: error);
       }
     } catch (e) {
@@ -78,10 +85,10 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    // DEV MODE: Simular login exitoso con credenciales de admin
-    if (_devMode) {
+    // DEV MODE: Simular login exitoso
+    if (devMode) {
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       // Credenciales de admin para desarrollo
       if (email == 'admin@lubricentros.com' && password == 'Admin123') {
         final mockUser = User(
@@ -94,7 +101,7 @@ class AuthService {
         SecureLogger.info('DEV MODE: Admin logged in', data: {'email': email});
         return AuthResult(success: true, token: mockToken, user: mockUser);
       }
-      
+
       // Cualquier otro email/password también funciona en dev mode
       final mockUser = User(
         id: 2,
@@ -107,6 +114,7 @@ class AuthService {
       return AuthResult(success: true, token: mockToken, user: mockUser);
     }
 
+    // Modo producción: llamar al backend real
     try {
       final response = await _apiClient.post(
         '/auth/login',
@@ -120,14 +128,20 @@ class AuthService {
         final data = jsonDecode(response.body);
         final token = data['token'] as String;
         final user = User.fromJson(data['user']);
-        
+
         _apiClient.setToken(token);
-        SecureLogger.info('User logged in successfully', data: {'email': email});
-        
+        SecureLogger.info('User logged in successfully',
+            data: {'email': email});
+
         return AuthResult(success: true, token: token, user: user);
       } else {
-        SecureLogger.error('Login failed', data: {'email': email, 'status': response.statusCode});
-        return AuthResult(success: false, error: 'Email o contraseña incorrectos');
+        final errorData = jsonDecode(response.body);
+        final error = errorData['error'] ??
+            errorData['message'] ??
+            'Email o contraseña incorrectos';
+        SecureLogger.error('Login failed',
+            data: {'email': email, 'status': response.statusCode});
+        return AuthResult(success: false, error: error);
       }
     } catch (e) {
       SecureLogger.error('Login error', error: e);
@@ -135,8 +149,33 @@ class AuthService {
     }
   }
 
-  Future<void> logout() async {
-    _apiClient.clearToken();
-    SecureLogger.info('User logged out');
+  Future<bool> logout() async {
+    try {
+      // Intentar logout en el backend (opcional - no bloquea si falla)
+      if (!devMode) {
+        await _apiClient.post('/auth/logout', {}, requiresAuth: true);
+      }
+    } catch (_) {
+      // Ignorar errores de logout
+    } finally {
+      _apiClient.clearToken();
+      SecureLogger.info('User logged out');
+    }
+    return true;
+  }
+
+  Future<bool> refreshToken() async {
+    if (devMode) return true;
+
+    try {
+      final response = await _apiClient.post('/auth/refresh', {});
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['token'] as String;
+        _apiClient.setToken(token);
+        return true;
+      }
+    } catch (_) {}
+    return false;
   }
 }
