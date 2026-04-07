@@ -5,15 +5,17 @@ import '../core/async_value.dart';
 import '../core/failure.dart';
 
 class AppointmentProvider extends ChangeNotifier {
-  // ignore: unused_field
   final AppointmentService _appointmentService;
+  static const bool useRealApi = true; // Cambiar a true en producción
 
   AsyncValue<List<Appointment>> _appointmentsState = const AsyncLoading();
   Failure? _lastFailure;
 
   AppointmentProvider({AppointmentService? appointmentService})
       : _appointmentService = appointmentService ?? AppointmentService() {
-    _loadMockData();
+    if (!useRealApi) {
+      _loadMockData();
+    }
   }
 
   AsyncValue<List<Appointment>> get appointmentsState => _appointmentsState;
@@ -23,27 +25,43 @@ class AppointmentProvider extends ChangeNotifier {
 
   // DEV MODE: Cargar datos de prueba
   void _loadMockData() {
+    final now = DateTime.now();
     _appointmentsState = AsyncData([
       Appointment(
-        id: 1, userId: 1, vehicleId: 1,
-        fecha: DateTime.now().add(const Duration(days: 3)),
-        tipoService: 'Cambio de aceite', status: AppointmentStatus.confirmed,
+        id: 1,
+        userId: 1,
+        vehicleId: 1,
+        fecha: now.add(const Duration(days: 3)),
+        slotEnd: now.add(const Duration(days: 3, hours: 1)),
+        tipoService: AppointmentType.cambioAceite,
+        status: AppointmentStatus.confirmed,
         observaciones: 'Revisar frenos también',
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        createdAt: now.subtract(const Duration(days: 2)),
+        updatedAt: now.subtract(const Duration(days: 2)),
       ),
       Appointment(
-        id: 2, userId: 1, vehicleId: 2,
-        fecha: DateTime.now().add(const Duration(days: 7)),
-        tipoService: 'Service completo', status: AppointmentStatus.pending,
+        id: 2,
+        userId: 1,
+        vehicleId: 2,
+        fecha: now.add(const Duration(days: 7)),
+        slotEnd: now.add(const Duration(days: 7, hours: 1)),
+        tipoService: AppointmentType.revisionGeneral,
+        status: AppointmentStatus.pending,
         observaciones: null,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        createdAt: now.subtract(const Duration(days: 1)),
+        updatedAt: now.subtract(const Duration(days: 1)),
       ),
       Appointment(
-        id: 3, userId: 1, vehicleId: 1,
-        fecha: DateTime.now().subtract(const Duration(days: 30)),
-        tipoService: 'Cambio de filtros', status: AppointmentStatus.completed,
+        id: 3,
+        userId: 1,
+        vehicleId: 1,
+        fecha: now.subtract(const Duration(days: 30)),
+        slotEnd: now.subtract(const Duration(days: 30, hours: 1)),
+        tipoService: AppointmentType.alineacion,
+        status: AppointmentStatus.completed,
         observaciones: 'Todo ok',
-        createdAt: DateTime.now().subtract(const Duration(days: 35)),
+        createdAt: now.subtract(const Duration(days: 35)),
+        updatedAt: now.subtract(const Duration(days: 30)),
       ),
     ]);
     notifyListeners();
@@ -55,9 +73,13 @@ class AppointmentProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // TODO: Replace with real API call: _appointmentService.getAppointments()
-      await Future.delayed(const Duration(milliseconds: 800));
-      _appointmentsState = AsyncData(appointments);
+      if (useRealApi) {
+        final data = await _appointmentService.getAppointments();
+        _appointmentsState = AsyncData(data);
+      } else {
+        await Future.delayed(const Duration(milliseconds: 800));
+        _appointmentsState = AsyncData(appointments);
+      }
       _lastFailure = null;
     } catch (e) {
       _lastFailure = UnknownFailure(error: e);
@@ -69,25 +91,38 @@ class AppointmentProvider extends ChangeNotifier {
   Future<bool> addAppointment({
     required int vehicleId,
     required DateTime fecha,
-    required String tipoService,
+    required AppointmentType tipoService,
     String? observaciones,
   }) async {
     _lastFailure = null;
     try {
-      // TODO: Replace with real API call
-      await Future.delayed(const Duration(milliseconds: 500));
-      final newAppointment = Appointment(
-        id: DateTime.now().millisecondsSinceEpoch,
-        userId: 1,
-        vehicleId: vehicleId,
-        fecha: fecha,
-        tipoService: tipoService,
-        status: AppointmentStatus.pending,
-        observaciones: observaciones,
-        createdAt: DateTime.now(),
-      );
-      final currentData = _appointmentsState.dataOrNull ?? [];
-      _appointmentsState = AsyncData([...currentData, newAppointment]);
+      if (useRealApi) {
+        final newAppointment = await _appointmentService.createAppointment(
+          vehicleId: vehicleId,
+          fecha: fecha,
+          tipoService: tipoService,
+          observaciones: observaciones,
+        );
+        final currentData = _appointmentsState.dataOrNull ?? [];
+        _appointmentsState = AsyncData([...currentData, newAppointment]);
+      } else {
+        await Future.delayed(const Duration(milliseconds: 500));
+        final now = DateTime.now();
+        final newAppointment = Appointment(
+          id: DateTime.now().millisecondsSinceEpoch,
+          userId: 1,
+          vehicleId: vehicleId,
+          fecha: fecha,
+          slotEnd: fecha.add(const Duration(hours: 1)),
+          tipoService: tipoService,
+          status: AppointmentStatus.pending,
+          observaciones: observaciones,
+          createdAt: now,
+          updatedAt: now,
+        );
+        final currentData = _appointmentsState.dataOrNull ?? [];
+        _appointmentsState = AsyncData([...currentData, newAppointment]);
+      }
       notifyListeners();
       return true;
     } catch (e) {
@@ -100,17 +135,27 @@ class AppointmentProvider extends ChangeNotifier {
   Future<bool> cancelAppointment(int appointmentId) async {
     _lastFailure = null;
     try {
-      // TODO: Replace with real API call
-      await Future.delayed(const Duration(milliseconds: 300));
+      if (useRealApi) {
+        await _appointmentService.cancelAppointment(appointmentId);
+      } else {
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
       final currentData = _appointmentsState.dataOrNull ?? [];
       _appointmentsState = AsyncData(
         currentData.map((a) {
           if (a.id == appointmentId) {
             return Appointment(
-              id: a.id, userId: a.userId, vehicleId: a.vehicleId,
-              fecha: a.fecha, tipoService: a.tipoService,
+              id: a.id,
+              userId: a.userId,
+              vehicleId: a.vehicleId,
+              fecha: a.fecha,
+              slotEnd: a.slotEnd,
+              tipoService: a.tipoService,
               status: AppointmentStatus.cancelled,
-              observaciones: a.observaciones, createdAt: a.createdAt,
+              observaciones: a.observaciones,
+              createdAt: a.createdAt,
+              updatedAt: DateTime.now(),
             );
           }
           return a;
@@ -122,6 +167,22 @@ class AppointmentProvider extends ChangeNotifier {
       _lastFailure = UnknownFailure(error: e);
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<List<DateTime>> getAvailableSlots(DateTime fecha) async {
+    if (useRealApi) {
+      return await _appointmentService.getAvailableSlots(fecha);
+    } else {
+      // Mock slots
+      return [
+        fecha.add(const Duration(hours: 9)),
+        fecha.add(const Duration(hours: 10)),
+        fecha.add(const Duration(hours: 11)),
+        fecha.add(const Duration(hours: 14)),
+        fecha.add(const Duration(hours: 15)),
+        fecha.add(const Duration(hours: 16)),
+      ];
     }
   }
 
