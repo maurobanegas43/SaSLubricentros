@@ -23,13 +23,17 @@ import (
 )
 
 func main() {
+	log.Println("[main] Starting application...")
+
 	// Load and validate configuration from .env
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
+	log.Printf("[main] Config loaded - Port: %s, Env: %s", cfg.Port, cfg.Environment)
 
-	// Establish MariaDB connection pool
+	// Establish database connection pool
+	log.Println("[main] Connecting to database...")
 	db, err := database.Connect(cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
