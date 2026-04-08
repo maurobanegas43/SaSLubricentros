@@ -7,6 +7,7 @@ import '../screens/vehicles/vehicle_detail_screen.dart';
 import '../screens/vehicles/add_vehicle_screen.dart';
 import '../screens/appointments/appointments_list_screen.dart';
 import '../screens/appointments/create_appointment_screen.dart';
+import '../screens/profile/profile_screen.dart';
 import '../models/vehicle.dart';
 import '../constants/app_constants.dart';
 
@@ -16,6 +17,7 @@ class AppRoute {
   static const String login = '/login';
   static const String register = '/register';
   static const String home = '/home';
+  static const String profile = '/profile';
   static const String vehicles = '/vehicles';
   static const String vehicleDetail = '/vehicle-detail';
   static const String addVehicle = '/add-vehicle';
@@ -129,8 +131,15 @@ class AppRouter {
           fullscreenDialog: true,
         );
 
+      case AppRoute.profile:
+        return AppPageTransitions.slideIn(
+          const ProfileScreen(),
+          settings: settings,
+        );
+
       default:
-        return _errorRoute('${AppStrings.routeNotFound}: ${settings.name}', settings);
+        return _errorRoute(
+            '${AppStrings.routeNotFound}: ${settings.name}', settings);
     }
   }
 

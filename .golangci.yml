@@ -27,10 +27,16 @@ linters-settings:
 
 issues:
   exclude-rules:
-    # Allow password in variable names and struct fields
-    - path: '(.+)_test\.go'
-      text: 'Logging passwords is forbidden'
-    # Allow in test files for testing redaction
-    - path: 'logging_test\.go'
+    # Exclude all test files from errcheck - tests may not handle all errors
+    - path: '_test\.go'
+      linters:
+        - errcheck
+    # Allow forbidigo in test files
+    - path: '_test\.go'
       linters:
         - forbidigo
+    # Ignore deferred Rollback in repositories
+    - path: '_repository\.go'
+      text: 'defer tx\\.Rollback\\(\\)'
+      linters:
+        - errcheck

@@ -8,7 +8,7 @@ enum AuthState { initial, authenticated, unauthenticated, loading }
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService;
   final StorageService _storageService;
-  
+
   AuthState _state = AuthState.initial;
   User? _user;
   String? _error;
@@ -31,13 +31,17 @@ class AuthProvider extends ChangeNotifier {
     final token = await _storageService.getToken();
     final user = await _storageService.getUser();
 
+    if (token != null) {
+      _authService.setAccessToken(token);
+    }
+
     if (token != null && user != null) {
       _user = user;
       _state = AuthState.authenticated;
     } else {
       _state = AuthState.unauthenticated;
     }
-    
+
     notifyListeners();
   }
 
@@ -60,6 +64,9 @@ class AuthProvider extends ChangeNotifier {
 
     if (result.success && result.token != null && result.user != null) {
       await _storageService.saveToken(result.token!);
+      if (result.refreshToken != null) {
+        await _storageService.saveRefreshToken(result.refreshToken!);
+      }
       await _storageService.saveUser(result.user!);
       _user = result.user;
       _state = AuthState.authenticated;
@@ -88,6 +95,9 @@ class AuthProvider extends ChangeNotifier {
 
     if (result.success && result.token != null && result.user != null) {
       await _storageService.saveToken(result.token!);
+      if (result.refreshToken != null) {
+        await _storageService.saveRefreshToken(result.refreshToken!);
+      }
       await _storageService.saveUser(result.user!);
       _user = result.user;
       _state = AuthState.authenticated;
@@ -102,7 +112,8 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _authService.logout();
+    final refreshToken = await _storageService.getRefreshToken();
+    await _authService.logout(refreshToken: refreshToken);
     await _storageService.clearAll();
     _user = null;
     _state = AuthState.unauthenticated;

@@ -13,18 +13,21 @@ import (
 
 // ServiceUsecase handles service record business logic.
 type ServiceUsecase struct {
-	serviceRepo domainrepo.ServiceRecordRepository
-	vehicleRepo domainrepo.VehicleRepository
+	serviceRepo  domainrepo.ServiceRecordRepository
+	vehicleRepo  domainrepo.VehicleRepository
+	addendumRepo domainrepo.ServiceAddendumRepository
 }
 
 // NewServiceUsecase creates a new service usecase.
 func NewServiceUsecase(
 	serviceRepo domainrepo.ServiceRecordRepository,
 	vehicleRepo domainrepo.VehicleRepository,
+	addendumRepo domainrepo.ServiceAddendumRepository,
 ) *ServiceUsecase {
 	return &ServiceUsecase{
-		serviceRepo: serviceRepo,
-		vehicleRepo: vehicleRepo,
+		serviceRepo:  serviceRepo,
+		vehicleRepo:  vehicleRepo,
+		addendumRepo: addendumRepo,
 	}
 }
 
@@ -118,4 +121,57 @@ func (uc *ServiceUsecase) GetLastServiceByVehicleID(ctx context.Context, vehicle
 		return nil, fmt.Errorf("get last service: %w", err)
 	}
 	return record, nil
+}
+
+// GetServiceByID retrieves a service record by ID.
+func (uc *ServiceUsecase) GetServiceByID(ctx context.Context, id uint) (*entity.ServiceRecord, error) {
+	return uc.serviceRepo.GetByID(ctx, id)
+}
+
+// CreateAddendumInput holds the input for creating a service addendum.
+type CreateAddendumInput struct {
+	ServiceID uint
+	FieldName string
+	OldValue  string
+	NewValue  string
+	Reason    string
+	CreatedBy uint
+}
+
+// CreateAddendum adds a correction to an immutable service record.
+func (uc *ServiceUsecase) CreateAddendum(ctx context.Context, input CreateAddendumInput) (*entity.ServiceAddendum, error) {
+	// Validate service exists
+	_, err := uc.serviceRepo.GetByID(ctx, input.ServiceID)
+	if err != nil {
+		return nil, fmt.Errorf("create addendum: service not found: %w", err)
+	}
+
+	// Validate required fields
+	if input.FieldName == "" || input.NewValue == "" || input.Reason == "" {
+		return nil, repository.ErrInvalidInput
+	}
+
+	addendum := &entity.ServiceAddendum{
+		ServiceID: input.ServiceID,
+		FieldName: input.FieldName,
+		OldValue:  input.OldValue,
+		NewValue:  input.NewValue,
+		Reason:    input.Reason,
+		CreatedBy: input.CreatedBy,
+	}
+
+	if err := uc.addendumRepo.Create(ctx, addendum); err != nil {
+		return nil, fmt.Errorf("create addendum: %w", err)
+	}
+
+	return addendum, nil
+}
+
+// GetAddendumsByServiceID retrieves all addendums for a service record.
+func (uc *ServiceUsecase) GetAddendumsByServiceID(ctx context.Context, serviceID uint) ([]entity.ServiceAddendum, error) {
+	addendums, err := uc.addendumRepo.GetByServiceID(ctx, serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("get addendums: %w", err)
+	}
+	return addendums, nil
 }

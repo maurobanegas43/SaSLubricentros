@@ -14,6 +14,7 @@ import (
 	"github.com/lubricentros/api/internal/database/migrations"
 	"github.com/lubricentros/api/internal/domain/entity"
 	"github.com/lubricentros/api/internal/handler"
+	infraMiddleware "github.com/lubricentros/api/internal/infrastructure/middleware"
 	"github.com/lubricentros/api/internal/middleware"
 	"github.com/lubricentros/api/internal/repository"
 	"github.com/lubricentros/api/internal/usecase"
@@ -22,13 +23,17 @@ import (
 )
 
 func main() {
+	log.Println("[main] Starting application...")
+
 	// Load and validate configuration from .env
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
+	log.Printf("[main] Config loaded - Port: %s, Env: %s", cfg.Port, cfg.Environment)
 
-	// Establish MariaDB connection pool
+	// Establish database connection pool
+	log.Println("[main] Connecting to database...")
 	db, err := database.Connect(cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -57,43 +62,67 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(gin.Logger())
 
+	// Add CORS middleware
+	r.Use(infraMiddleware.CORS())
+
+	// Add input sanitization middleware
+	r.Use(infraMiddleware.InputSanitizer())
+
 	// Create repositories
 	userRepo := repository.NewUserRepository(db)
 	vehicleRepo := repository.NewVehicleRepository(db)
 	appointmentRepo := repository.NewAppointmentRepository(db)
 	serviceRepo := repository.NewServiceRecordRepository(db)
 	refreshRepo := repository.NewRefreshTokenRepository(db)
+	auditRepo := repository.NewAuditLogRepository(db)
+	passwordResetRepo := repository.NewPasswordResetTokenRepository(db)
+	vehicleTransferRepo := repository.NewVehicleTransferRepository(db)
+	productRepo := repository.NewProductRepository(db)
 
 	// Create usecases
 	authUsecase := usecase.NewAuthUsecase(userRepo, refreshRepo, jwtMgr)
-	vehicleUsecase := usecase.NewVehicleUsecase(vehicleRepo, serviceRepo)
+	authUsecase.SetAuditRepo(auditRepo)                 // Set audit repo to avoid circular dependency
+	authUsecase.SetPasswordResetRepo(passwordResetRepo) // Set password reset repo
+	vehicleUsecase := usecase.NewVehicleUsecase(vehicleRepo, serviceRepo, vehicleTransferRepo, userRepo)
 	appointmentUsecase := usecase.NewAppointmentUsecase(appointmentRepo, vehicleRepo)
-	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo)
+	serviceAddendumRepo := repository.NewServiceAddendumRepository(db)
+	serviceUsecase := usecase.NewServiceUsecase(serviceRepo, vehicleRepo, serviceAddendumRepo)
+	productUsecase := usecase.NewProductUsecase(productRepo)
+	dashboardUsecase := usecase.NewDashboardUsecase(userRepo, vehicleRepo, appointmentRepo, serviceRepo, productRepo)
+	reportHandler := handler.NewReportHandler(vehicleUsecase, serviceUsecase)
 
 	// Create handlers
 	authHandler := handler.NewAuthHandler(authUsecase)
 	vehicleHandler := handler.NewVehicleHandler(vehicleUsecase)
 	appointmentHandler := handler.NewAppointmentHandler(appointmentUsecase)
 	serviceHandler := handler.NewServiceHandler(serviceUsecase)
+	productHandler := handler.NewProductHandler(productUsecase)
+	dashboardHandler := handler.NewDashboardHandler(dashboardUsecase)
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
-	// Public auth routes
+	// Public auth routes (with rate limiting)
 	auth := r.Group("/auth")
+	auth.Use(infraMiddleware.RateLimit(5)) // 5 requests per minute
 	{
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/refresh", authHandler.Refresh)
 		auth.POST("/logout", authHandler.Logout)
+		auth.POST("/password-recovery", authHandler.RequestPasswordRecovery)
+		auth.POST("/password-reset", authHandler.ResetPassword)
 	}
 
 	// Protected routes (require authentication)
 	protected := r.Group("/")
 	protected.Use(middleware.Auth(jwtMgr))
 	{
+		// User search route (for vehicle transfer)
+		protected.GET("/users/search", authHandler.SearchUsers)
+
 		// Vehicle routes
 		vehicles := protected.Group("/vehicles")
 		{
@@ -103,6 +132,9 @@ func main() {
 			vehicles.PUT("/:id", vehicleHandler.Update)
 			vehicles.DELETE("/:id", vehicleHandler.Delete)
 			vehicles.GET("/:id/report", vehicleHandler.GetReport)
+			vehicles.GET("/:id/report/pdf", reportHandler.GenerateVehiclePDF)
+			vehicles.POST("/:id/transfer", vehicleHandler.TransferOwnership)
+			vehicles.GET("/:id/transfers", vehicleHandler.GetTransferHistory)
 		}
 
 		// Appointment routes
@@ -120,13 +152,43 @@ func main() {
 		services := protected.Group("/services")
 		{
 			services.GET("/vehicle/:vehicleId", serviceHandler.GetByVehicleID)
+			services.POST("/:id/addendums", serviceHandler.CreateAddendum)
+			services.GET("/:id/addendums", serviceHandler.GetAddendums)
 		}
 
-		// Admin-only service creation
+		// Admin-only routes
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireRole(entity.RoleAdmin))
 		{
 			admin.POST("/services", serviceHandler.Create)
+			admin.GET("/products", productHandler.List)
+			admin.POST("/products", productHandler.Create)
+			admin.GET("/products/low-stock", productHandler.GetLowStock)
+			admin.GET("/dashboard/stats", dashboardHandler.GetStats)
+			admin.GET("/dashboard/low-stock", dashboardHandler.GetLowStock)
+		}
+
+		// Product routes (authenticated users)
+		products := protected.Group("/products")
+		{
+			products.GET("", productHandler.List)
+			products.GET("/:id", productHandler.GetByID)
+			products.PUT("/:id", productHandler.Update)
+			products.DELETE("/:id", productHandler.Delete)
+			products.PATCH("/:id/stock", productHandler.UpdateStock)
+		}
+
+		// Report routes
+		reports := protected.Group("/reports")
+		{
+			reports.POST("/invoice", reportHandler.GenerateInvoicePDF)
+		}
+
+		// Admin report routes
+		admin = protected.Group("/admin")
+		admin.Use(middleware.RequireRole(entity.RoleAdmin))
+		{
+			admin.GET("/reports/revenue/pdf", reportHandler.GenerateRevenuePDF)
 		}
 
 		// Logout all (authenticated users)

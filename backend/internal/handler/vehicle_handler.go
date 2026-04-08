@@ -191,6 +191,88 @@ func (h *VehicleHandler) GetReport(c *gin.Context) {
 	response.JSON(c, http.StatusOK, report)
 }
 
+// TransferOwnership handles POST /vehicles/:id/transfer
+func (h *VehicleHandler) TransferOwnership(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	vehicleID, err := parseUintParam(c, "id")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Bad Request", "Invalid vehicle ID")
+		return
+	}
+
+	var req dto.TransferOwnershipRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Validation(c, extractValidationErrors(err))
+		return
+	}
+
+	transfer, err := h.vehicleUsecase.TransferOwnership(c.Request.Context(), usecase.TransferOwnershipInput{
+		VehicleID:   vehicleID,
+		FromUserID:  userID,
+		ToUserID:    req.ToUserID,
+		Reason:      req.Reason,
+		InitiatedBy: userID,
+	})
+	if err != nil {
+		if err.Error() == "vehicle does not belong to user" ||
+			err.Error() == "cannot transfer to same user" {
+			response.Error(c, http.StatusBadRequest, "Bad Request", err.Error())
+			return
+		}
+		if err.Error() == "target user does not exist" {
+			response.Error(c, http.StatusBadRequest, "Bad Request", "Target user does not exist")
+			return
+		}
+		response.InternalError(c)
+		return
+	}
+
+	response.JSON(c, http.StatusOK, dto.TransferOwnershipResponse{
+		TransferID:    transfer.ID,
+		VehicleID:     transfer.VehicleID,
+		FromUserID:    *transfer.FromUserID,
+		ToUserID:      transfer.ToUserID,
+		TransferredAt: transfer.TransferredAt.Format("2006-01-02T15:04:05Z"),
+		Status:        transfer.Status,
+	})
+}
+
+// GetTransferHistory handles GET /vehicles/:id/transfers
+func (h *VehicleHandler) GetTransferHistory(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	vehicleID, err := parseUintParam(c, "id")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Bad Request", "Invalid vehicle ID")
+		return
+	}
+
+	transfers, err := h.vehicleUsecase.GetTransferHistory(c.Request.Context(), vehicleID, userID)
+	if err != nil {
+		response.NotFound(c, "Vehicle not found")
+		return
+	}
+
+	responses := make([]dto.TransferOwnershipResponse, len(transfers))
+	for i, t := range transfers {
+		fromUserID := uint(0)
+		if t.FromUserID != nil {
+			fromUserID = *t.FromUserID
+		}
+		responses[i] = dto.TransferOwnershipResponse{
+			TransferID:    t.ID,
+			VehicleID:     t.VehicleID,
+			FromUserID:    fromUserID,
+			ToUserID:      t.ToUserID,
+			TransferredAt: t.TransferredAt.Format("2006-01-02T15:04:05Z"),
+			Status:        t.Status,
+		}
+	}
+
+	response.JSON(c, http.StatusOK, dto.VehicleTransferHistoryResponse{
+		Transfers: responses,
+	})
+}
+
 // vehicleToResponse converts an entity.Vehicle to a DTO response.
 func vehicleToResponse(v entity.Vehicle) dto.VehicleResponse {
 	return dto.VehicleResponse{
