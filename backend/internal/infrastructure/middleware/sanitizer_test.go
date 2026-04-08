@@ -1,7 +1,13 @@
 package middleware
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestSanitizeString(t *testing.T) {
@@ -161,5 +167,94 @@ func TestSanitizeMap(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestInputSanitizer_PreservesBodyForHandlerBinding(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(InputSanitizer())
+
+	type loginRequest struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required,min=8"`
+	}
+
+	r.POST("/auth/login", func(c *gin.Context) {
+		var req loginRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"email":    req.Email,
+			"password": req.Password,
+		})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/auth/login",
+		strings.NewReader(`{"email":"user@example.com","password":"12345678"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	if response["email"] != "user@example.com" {
+		t.Errorf("expected email user@example.com, got %q", response["email"])
+	}
+}
+
+func TestInputSanitizer_SanitizesHandlerBoundPayload(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(InputSanitizer())
+
+	type registerRequest struct {
+		Name string `json:"name" binding:"required"`
+	}
+
+	r.POST("/auth/register", func(c *gin.Context) {
+		var req registerRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"name": req.Name})
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/auth/register",
+		strings.NewReader(`{"name":"  <script>alert('xss')</script>  "}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
+	}
+
+	var response map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+
+	expected := "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"
+	if response["name"] != expected {
+		t.Errorf("expected sanitized name %q, got %q", expected, response["name"])
 	}
 }

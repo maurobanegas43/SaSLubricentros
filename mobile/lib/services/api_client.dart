@@ -2,15 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiClient {
-  // URL base del backend - configurable para diferentes entornos
-  // DEVELOPMENT: 'http://10.0.2.2:8080' (Android emulator)
-  // PRODUCTION: Reemplazar con la URL del servidor desplegado
-  // Ejemplo: 'https://api.lubricentros.com' o IP del servidor
-
-  // ⚠️ IMPORTANTE: Actualizar esta URL para producción
-  static const String baseUrl = 'http://TU_IP_SERVIDOR:8080';
-  // Para testing local usar: 'http://localhost:8080'
-  // Para Android emulator: 'http://10.0.2.2:8080'
+  // URL base del backend.
+  // Puede sobreescribirse en build con:
+  // flutter run --dart-define=API_BASE_URL=https://tu-api.com
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://proyecto-3-2.onrender.com',
+  );
 
   final http.Client _client;
   String? _token;
@@ -19,7 +17,8 @@ class ApiClient {
 
   void setToken(String token) {
     _token = token;
-    print('[ApiClient] Token set: ${token.substring(0, 20)}...');
+    final previewLength = token.length < 20 ? token.length : 20;
+    print('[ApiClient] Token set: ${token.substring(0, previewLength)}...');
   }
 
   void clearToken() {
@@ -28,6 +27,39 @@ class ApiClient {
   }
 
   String? get token => _token;
+
+  static dynamic decodeBody(http.Response response) {
+    if (response.body.isEmpty) return null;
+    return jsonDecode(response.body);
+  }
+
+  static dynamic extractData(http.Response response) {
+    final decoded = decodeBody(response);
+    if (decoded is Map<String, dynamic>) {
+      if (decoded.containsKey('success') && decoded.containsKey('data')) {
+        return decoded['data'];
+      }
+      if (decoded.containsKey('data')) {
+        return decoded['data'];
+      }
+    }
+    return decoded;
+  }
+
+  static String extractErrorMessage(
+    http.Response response, {
+    String fallback = 'Error de conexión',
+  }) {
+    final decoded = decodeBody(response);
+    if (decoded is Map<String, dynamic>) {
+      final message = decoded['message'];
+      if (message is String && message.isNotEmpty) return message;
+
+      final error = decoded['error'];
+      if (error is String && error.isNotEmpty) return error;
+    }
+    return fallback;
+  }
 
   Map<String, String> _getHeaders({bool includeAuth = false}) {
     final headers = <String, String>{

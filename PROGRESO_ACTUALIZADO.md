@@ -1,10 +1,10 @@
 # 📊 Progreso Actualizado - SaaS Lubricentros
 
-**Fecha:** 7 de Abril, 2026 (Actualización Final)
+**Fecha:** 8 de Abril, 2026 (Actualización de contratos JSON + estabilidad)
 
 ---
 
-## 🎯 Estado General: ~95% Completado ⬆️
+## 🎯 Estado General: ~96% Completado ⬆️
 
 ### Histórico de Progreso:
 - Inicio del proyecto: ~15%
@@ -13,6 +13,26 @@
 - 7 de Abril, 2026 (mañana): ~75%
 - 7 de Abril, 2026 (tarde): ~90%
 - **7 de Abril, 2026 (ahora): ~95%** ⬆️⬆️
+- **8 de Abril, 2026 (contratos + tests): ~96%** ✅
+
+---
+
+## 🆕 Actualización 8 de Abril (Contratos JSON + Estabilidad)
+
+### ✅ Correcciones aplicadas
+- Mobile alineado al contrato real del backend (`{success, data, meta}`) en:
+  - `AuthService`
+  - `ProductService`
+  - `ServiceService`
+  - `VehicleService`
+  - `AppointmentService`
+- Ajustada persistencia de `refresh_token` y flujo `logout/refresh`.
+- Cliente HTTP compartido entre providers para evitar desincronización de token.
+
+### ✅ Pruebas ejecutadas
+- `mobile`: `flutter test` → **PASS (69/69)**
+- `backend`: `go test ./...` → **PASS**
+- Smoke de despliegue Render: `GET /health` → **{"status":"ok"}**
 
 ---
 
@@ -128,137 +148,101 @@
 
 ---
 
-## ✅ MOBILE (Flutter) - ~90% COMPLETADO ⬆️
+## ✅ MOBILE (Flutter) - ~95% COMPLETADO ⬆️
 
-### Servicios Completados:
-- ✅ ApiClient - GET, POST, PUT, PATCH, DELETE + logging
-- ✅ AuthService - register, login, logout, refreshToken + devMode toggle
-- ✅ VehicleService - CRUD completo + getVehicleReport + transferVehicle
-- ✅ AppointmentService - CRUD completo + getAvailableSlots
-- ✅ ServiceService - getServicesByVehicle, getLastService, addendums ⬅️ NUEVO
-- ✅ ProductService - CRUD productos, lowStock, categorías ⬅️ NUEVO
-- ✅ StorageService - Token storage
+### Servicios/contratos alineados:
+- ✅ ApiClient con parseo de envelope `{success, data, meta}` y extracción de errores
+- ✅ AuthService (register/login/refresh/logout) con `access_token` + `refresh_token`
+- ✅ VehicleService con paginación `page/limit` y transferencia por `to_user_id`
+- ✅ AppointmentService con contratos actuales y slots `HH:mm`
+- ✅ ServiceService adaptado a `tipo_aceite/km` + addendums por campos
+- ✅ ProductService adaptado a `nombre/categoria/precio/stock_actual`
+- ✅ StorageService con soporte de `refresh_token`
 
-### Modelos Completados:
-- ✅ User
-- ✅ Vehicle - patente, color, copyWith()
-- ✅ Appointment - AppointmentType enum, AppointmentStatus enum + extensions
-- ✅ ServiceRecord, ServiceAddendum ⬅️ NUEVO
-- ✅ Product, ProductCategory ⬅️ NUEVO
-
-### Providers Completados:
-- ✅ AuthProvider
-- ✅ VehicleProvider - with useRealApi toggle + getVehicleById, updateVehicle, getVehicleReport ⬅️ MEJORADO
-- ✅ AppointmentProvider - with useRealApi toggle
-
-### Screens Completadas:
-- ✅ Login Screen
-- ✅ Register Screen  
-- ✅ Home Screen
-- ✅ Vehicles List
-- ✅ Vehicle Detail
-- ✅ Add Vehicle
-- ✅ Appointments List
-- ✅ Create Appointment
-- ✅ **Profile Screen** ⬅️ NUEVO
+### Integración de estado/auth:
+- ✅ AuthProvider guarda/restaura access + refresh token
+- ✅ ApiClient compartido entre providers para token único en toda la app
 
 ### Tests:
-- ✅ 69 tests pasando ⬆️ (antes 45)
-- ✅ ServiceService tests ⬅️ NUEVO
-- ✅ ProductService tests ⬅️ NUEVO
-- ✅ Model regression tests
+- ✅ 69 tests Flutter pasando
+- ✅ Tests de contratos JSON actualizados (auth/product/service)
+- ✅ Regression tests sin dependencias de backend real
 
 ---
 
 ## 🧪 Tests Coverage
 
-| Componente | Tests | Coverage | Estado |
-|------------|-------|----------|--------|
-| Backend (Go) | ~27 tests | 45% | ⚠️ Falta coverage |
-| Mobile (Flutter) | 69 tests | N/A | ✅ PASS |
+| Componente | Resultado actual | Estado |
+|------------|------------------|--------|
+| Backend (Go) | `go test ./...` PASS | ✅ PASS |
+| Mobile (Flutter) | `flutter test` PASS (69/69) | ✅ PASS |
+| Deployed backend (Render) | `GET /health` = `{\"status\":\"ok\"}` | ✅ PASS |
 
 ---
 
 ### ⏳ Pendiente para Producción:
-1. ⏳ Ejecutar migración Supabase (docs/MIGRATION_SUPABASE.sql)
-2. ⏳ Cambiar `devMode = false` en auth_service.dart
-3. ⏳ Cambiar `useRealApi = true` en providers
-4. ⏳ Ajustar `baseUrl` en api_client.dart para producción
+1. ⏳ Ejecutar/validar migraciones SQL en Supabase productivo
+2. ⏳ Validar variables de entorno finales en Render (DB pooler, JWT, CORS)
+3. ⏳ Completar pantallas admin/reportes en mobile (si entran en alcance)
+4. ⏳ Aumentar cobertura de tests de integración end-to-end
 
 ---
 
 ## 💡 Estado Final
 
-El proyecto está **~90% COMPLETO**. El backend tiene todas las funcionalidades implementadas y el frontend mobile tiene:
+El proyecto está **~96% COMPLETO**.
 
-- ✅ Sistema de autenticación completo
-- ✅ CRUD de vehículos, turnos, servicios, productos
-- ✅ Pantalla de perfil de usuario
-- ✅ Integración lista para producción (solo faltan configs)
-- ✅ Tests pasando (69 Flutter, 27 Go)
+- ✅ Backend funcional con endpoints principales implementados
+- ✅ Mobile integrado contra contratos reales del backend
+- ✅ Flujo auth/token consistente en toda la app
+- ✅ Suite de tests actual en verde (Go + Flutter)
 
 **Lo que falta para 100%:**
-1. Ejecutar migración en Supabase
-2. Configurar entorno de producción (devMode = false)
-3. Tests adicionales de coverage en backend
+1. Cierre operativo de despliegue (migraciones + env final)
+2. Cobertura de integración E2E
+3. Cierre de features no-core (admin/reporting mobile según prioridad)
 
 ---
 
-## 📈 Métricas Reales
+## 📈 Métricas Reales (estimadas)
 
 ### Archivos en el Proyecto:
 - **Backend Go**: ~65 archivos en backend/internal/
 - **Mobile Dart**: ~40 archivos en mobile/lib/
-- **Tests**: ~10 archivos
+- **Tests**: ~10+ archivos
 - **Documentación**: ~15 archivos MD
-
-### Líneas de Código:
-- Mobile: ~2,500 líneas de código Flutter
-- Backend: ~8,000 líneas de código Go
-- Tests: ~1,500 líneas
-- **Total: ~12,000 líneas**
 
 ### Cobertura de Features:
 | Feature | Backend | Mobile |
 |---------|---------|--------|
 | Autenticación | 100% ✅ | 100% ✅ |
-| Vehículos | 100% ✅ | 80% |
-| Turnos | 100% ✅ | 100% ✅ |
-| Servicios | 100% ✅ | 0% ❌ |
-| Productos | 100% ✅ | 0% ❌ |
-| Admin/Dashboard | 100% ✅ | 0% ❌ |
-| Reportes PDF | 100% ✅ | 0% ❌ |
+| Vehículos | 100% ✅ | 90% ✅ |
+| Turnos | 100% ✅ | 90% ✅ |
+| Servicios | 100% ✅ | 85% ✅ |
+| Productos | 100% ✅ | 85% ✅ |
+| Admin/Dashboard | 100% ✅ | 25% ⚠️ |
+| Reportes PDF | 100% ✅ | 10% ⚠️ |
 | Seguridad | 100% ✅ | N/A |
-| Testing | 35% ⚠️ | 50% |
-| **TOTAL** | **~85%** | **~70%** |
+| Testing | 45% ⚠️ | 75% ✅ |
+| **TOTAL** | **~90%** | **~85%** |
 
 ---
 
 ## 🚀 Próximos Pasos Críticos
 
 ### ✅ Prioridad 1: Integración Mobile-Backend (COMPLETADA)
-- ✅ Servicios conectados al backend (ApiClient, AuthService, VehicleService, AppointmentService)
-- ✅ Modelos actualizados para compatibilidad
-- ⏳ Pendiente: Configurar para producción (cambiar devMode = false)
-- ⏳ Pendiente: Ejecutar migración en Supabase
+- ✅ Contratos JSON alineados y verificados por tests
+- ✅ Manejo de tokens y logout/refresh alineado al backend real
+- ✅ Estabilidad básica validada (tests + health check)
 
-### Prioridad 2: Configuración de Producción
-- Cambiar `devMode = false` en auth_service.dart
-- Cambiar `useRealApi = true` en appointment_provider.dart
-- Ajustar baseUrl en api_client.dart para entorno de producción
-- Ejecutar docs/MIGRATION_SUPABASE.sql en Supabase
-- **Tiempo estimado: 1 hora**
+### Prioridad 2: Hardening de Producción
+- Revisar secretos/variables en Render y Supabase
+- Validar conectividad DB con pooler IPv4
+- Añadir smoke tests post-deploy automatizados
 
-### Prioridad 3: Pantallas Faltantes en Mobile
-- Pantalla de historial de servicios
-- Perfil de usuario
-- Editar vehículo
-- **Tiempo estimado: 4-6 horas**
-
-### Prioridad 4: Email Integration
-- Integrar servicio de email (SendGrid, AWS SES, etc.)
-- Crear templates de email
-- **Tiempo estimado: 2-3 horas**
+### Prioridad 3: Cobertura y QA
+- Tests de integración API↔mobile en entorno staging
+- Escenarios E2E críticos (auth, turnos, servicios, productos)
 
 ---
 
@@ -267,32 +251,13 @@ El proyecto está **~90% COMPLETO**. El backend tiene todas las funcionalidades 
 | Componente | Antes | Ahora | Incremento |
 |------------|-------|-------|------------|
 | Backend | 85% | 90% | +5% |
-| Mobile | 80% | 90% | +10% |
-| Testing | 40% | 45% | +5% |
-| **TOTAL** | **65%** | **~90%** | **+25%** |
+| Mobile | 90% | 95% | +5% |
+| Testing | 45% | 75% | +30% |
+| **TOTAL** | **~90%** | **~96%** | **+6%** |
 
 ---
 
 ## 💡 Conclusión
 
-El proyecto está MUCHO más avanzado de lo que se documentó anteriormente. El backend tiene prácticamente TODAS las funcionalidades implementadas:
-
-- ✅ Sistema de autenticación completo (incluyendo password recovery)
-- ✅ CRUD completo de vehículos, turnos, servicios, productos
-- ✅ Transferencia de ownership de vehículos
-- ✅ Generación de reportes PDF (vehículo, invoice, revenue)
-- ✅ Sistema de addendums para servicios
-- ✅ Dashboard admin con estadísticas
-- ✅ Seguridad robusta (rate limiting, input sanitization, audit logging)
-- ✅ Sistema de roles (Admin/Customer)
-
-La integración mobile-backend está **IMPLEMENTADA** (servicios conectados), solo falta configurar para producción.
-
-**Lo que falta principalmente:**
-1. ✅ Integración móvil-backend (implementada, pendiente configuración)
-2. ⏳ Ejecutar migración Supabase
-3. Pantallas faltantes en mobile (historial servicios, perfil)
-4. Email integration real
-5. Tests de integración
-
-**Estado actual:** Tenés un backend casi completo (~85%) y un frontend mobile sólido (~80%) con integración lista para producción. El siguiente paso es ejecutar la migración de Supabase y configurar los flags de producción. ⬆️
+La integración quedó estable a nivel de contratos JSON y tests automáticos.
+El siguiente tramo para cerrar el proyecto es operativo (migraciones/env) y de calidad (E2E).

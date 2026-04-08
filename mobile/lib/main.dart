@@ -8,6 +8,13 @@ import 'providers/auth_provider.dart';
 import 'providers/vehicle_provider.dart';
 import 'providers/appointment_provider.dart';
 import 'providers/loading_provider.dart';
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
+import 'services/vehicle_service.dart';
+import 'services/appointment_service.dart';
+
+final ApiClient _sharedApiClient = ApiClient();
+final AuthService _sharedAuthService = AuthService(apiClient: _sharedApiClient);
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,9 +34,19 @@ class LubricentrosApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => VehicleProvider()),
-        ChangeNotifierProvider(create: (_) => AppointmentProvider()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authService: _sharedAuthService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => VehicleProvider(
+            vehicleService: VehicleService(apiClient: _sharedApiClient),
+          ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AppointmentProvider(
+            appointmentService: AppointmentService(apiClient: _sharedApiClient),
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => LoadingProvider()),
       ],
       child: MaterialApp(

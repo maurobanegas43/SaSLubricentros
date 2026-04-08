@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../models/appointment.dart';
 import '../utils/secure_logger.dart';
 import 'api_client.dart';
@@ -16,7 +15,8 @@ class AppointmentService {
     AppointmentStatus? status,
   }) async {
     try {
-      String endpoint = '/appointments?offset=$offset&limit=$limit';
+      final page = (offset ~/ limit) + 1;
+      String endpoint = '/appointments?page=$page&limit=$limit';
       if (status != null) {
         endpoint += '&status=${status.value}';
       }
@@ -24,13 +24,22 @@ class AppointmentService {
       final response = await _apiClient.get(endpoint);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final appointmentsList = data['appointments'] as List;
+        final data = ApiClient.extractData(response);
+        final appointmentsList = (data is List)
+            ? data
+            : ((data is Map<String, dynamic> && data['appointments'] is List)
+                ? data['appointments'] as List
+                : <dynamic>[]);
         return appointmentsList.map((a) => Appointment.fromJson(a)).toList();
       } else {
         SecureLogger.error('Failed to fetch appointments',
             data: {'status': response.statusCode});
-        throw Exception('Error al cargar turnos');
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al cargar turnos',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error fetching appointments', error: e);
@@ -44,12 +53,17 @@ class AppointmentService {
       final response = await _apiClient.get('/appointments/$id');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = ApiClient.extractData(response) as Map<String, dynamic>;
         return Appointment.fromJson(data);
       } else {
         SecureLogger.error('Failed to fetch appointment',
             data: {'id': id, 'status': response.statusCode});
-        throw Exception('Error al cargar turno');
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al cargar turno',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error fetching appointment', error: e);
@@ -73,6 +87,7 @@ class AppointmentService {
         {
           'vehicle_id': vehicleId,
           'fecha': fecha.toUtc().toIso8601String(),
+          // slot_end no es requerido por el backend actual, se mantiene por compatibilidad.
           'slot_end': slotEnd.toUtc().toIso8601String(),
           'tipo_service': tipoService.value,
           if (observaciones != null) 'observaciones': observaciones,
@@ -81,15 +96,19 @@ class AppointmentService {
       );
 
       if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final data = ApiClient.extractData(response) as Map<String, dynamic>;
         SecureLogger.info('Appointment created successfully',
             data: {'vehicleId': vehicleId, 'tipoService': tipoService.value});
         return Appointment.fromJson(data);
       } else {
-        final errorData = jsonDecode(response.body);
         SecureLogger.error('Failed to create appointment',
-            data: {'status': response.statusCode, 'error': errorData});
-        throw Exception(errorData['error'] ?? 'Error al crear turno');
+            data: {'status': response.statusCode, 'body': response.body});
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al crear turno',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error creating appointment', error: e);
@@ -116,14 +135,18 @@ class AppointmentService {
           await _apiClient.put('/appointments/$id', body, requiresAuth: true);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = ApiClient.extractData(response) as Map<String, dynamic>;
         SecureLogger.info('Appointment updated successfully', data: {'id': id});
         return Appointment.fromJson(data);
       } else {
-        final errorData = jsonDecode(response.body);
         SecureLogger.error('Failed to update appointment',
             data: {'id': id, 'status': response.statusCode});
-        throw Exception(errorData['error'] ?? 'Error al actualizar turno');
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al actualizar turno',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error updating appointment', error: e);
@@ -147,7 +170,12 @@ class AppointmentService {
       } else {
         SecureLogger.error('Failed to cancel appointment',
             data: {'id': id, 'status': response.statusCode});
-        throw Exception('Error al cancelar turno');
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al cancelar turno',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error cancelling appointment', error: e);
@@ -166,7 +194,12 @@ class AppointmentService {
       } else {
         SecureLogger.error('Failed to delete appointment',
             data: {'id': id, 'status': response.statusCode});
-        throw Exception('Error al eliminar turno');
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al eliminar turno',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error deleting appointment', error: e);
@@ -183,13 +216,31 @@ class AppointmentService {
           await _apiClient.get('/appointments/slots?date=$dateStr');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final slotsList = data['slots'] as List;
-        return slotsList.map((s) => DateTime.parse(s as String)).toList();
+        final data = ApiClient.extractData(response);
+        final slotsList =
+            (data is Map<String, dynamic> && data['slots'] is List)
+                ? data['slots'] as List
+                : <dynamic>[];
+
+        final result = <DateTime>[];
+        for (final slot in slotsList) {
+          final slotStr = '$slot';
+          // El backend devuelve HH:mm; se compone con la fecha solicitada.
+          final value = DateTime.tryParse('${dateStr}T$slotStr:00');
+          if (value != null) {
+            result.add(value);
+          }
+        }
+        return result;
       } else {
         SecureLogger.error('Failed to fetch slots',
             data: {'status': response.statusCode});
-        throw Exception('Error al cargar horarios disponibles');
+        throw Exception(
+          ApiClient.extractErrorMessage(
+            response,
+            fallback: 'Error al cargar horarios disponibles',
+          ),
+        );
       }
     } catch (e) {
       SecureLogger.error('Error fetching slots', error: e);

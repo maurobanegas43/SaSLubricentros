@@ -1,7 +1,10 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/json"
 	"html"
+	"io"
 	"regexp"
 	"strings"
 
@@ -32,9 +35,26 @@ func InputSanitizer() gin.HandlerFunc {
 			return
 		}
 
-		// Get the raw body
+		// Read raw body once
+		rawBody, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			// If reading fails, keep request flow untouched
+			c.Next()
+			return
+		}
+
+		// Always restore body so handlers can bind it later
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
+
+		// Empty body: nothing to sanitize
+		if len(bytes.TrimSpace(rawBody)) == 0 {
+			c.Next()
+			return
+		}
+
+		// Decode body as generic map for recursive sanitization
 		var body map[string]interface{}
-		if err := c.ShouldBindJSON(&body); err != nil {
+		if err := json.Unmarshal(rawBody, &body); err != nil {
 			// If binding fails, let the handler deal with it
 			c.Next()
 			return
@@ -43,8 +63,19 @@ func InputSanitizer() gin.HandlerFunc {
 		// Sanitize all string values recursively
 		sanitizeMap(body)
 
+		// Marshal sanitized payload and re-inject it into request body
+		sanitizedBody, err := json.Marshal(body)
+		if err != nil {
+			// Fallback to original body if marshal fails
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
+			c.Next()
+			return
+		}
+
 		// Store sanitized body in context for handlers to use
 		c.Set("sanitized_body", body)
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(sanitizedBody))
+		c.Request.ContentLength = int64(len(sanitizedBody))
 
 		c.Next()
 	}
@@ -98,7 +129,7 @@ func sanitizeString(s string) string {
 	// 4. Normalize Unicode (NFC normalization)
 	// This prevents Unicode-based attacks
 	// Note: For full Unicode normalization, use golang.org/x/text/unicode/norm
-	
+
 	return s
 }
 

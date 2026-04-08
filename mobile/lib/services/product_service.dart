@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../utils/secure_logger.dart';
 import 'api_client.dart';
 
@@ -97,13 +96,18 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    final categoryValue =
+        (json['category'] ?? json['categoria'] ?? 'otro') as String;
+    final stockValue = json['stock'] ?? json['stock_actual'] ?? 0;
+    final priceValue = json['price'] ?? json['precio'] ?? 0;
+
     return Product(
       id: json['id'] as int,
-      name: json['name'] as String,
-      description: json['description'] as String?,
-      price: (json['price'] as num).toDouble(),
-      category: ProductCategoryExtension.fromString(json['category'] as String),
-      stock: json['stock'] as int,
+      name: (json['name'] ?? json['nombre']) as String,
+      description: (json['description'] ?? json['descripcion']) as String?,
+      price: (priceValue as num).toDouble(),
+      category: ProductCategoryExtension.fromString(categoryValue),
+      stock: stockValue is int ? stockValue : int.tryParse('$stockValue') ?? 0,
       brand: json['brand'] as String?,
       sku: json['sku'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -129,7 +133,10 @@ class Product {
 
 class ProductService {
   final ApiClient _apiClient;
-  static const bool useRealApi = false;
+  static const bool useRealApi = bool.fromEnvironment(
+    'USE_REAL_PRODUCT_API',
+    defaultValue: true,
+  );
 
   ProductService({ApiClient? apiClient})
       : _apiClient = apiClient ?? ApiClient();
@@ -139,19 +146,29 @@ class ProductService {
       {int offset = 0, int limit = 20, ProductCategory? category}) async {
     if (useRealApi) {
       try {
-        String endpoint = '/products?offset=$offset&limit=$limit';
+        final page = (offset ~/ limit) + 1;
+        String endpoint = '/products?page=$page&limit=$limit';
         if (category != null) {
-          endpoint += '&category=${category.value}';
+          endpoint += '&categoria=${category.value}';
         }
         final response = await _apiClient.get(endpoint);
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final productsList = data['products'] as List;
+          final data = ApiClient.extractData(response);
+          final productsList = (data is List)
+              ? data
+              : ((data is Map<String, dynamic> && data['products'] is List)
+                  ? data['products'] as List
+                  : <dynamic>[]);
           return productsList.map((p) => Product.fromJson(p)).toList();
         } else {
           SecureLogger.error('Failed to fetch products',
               data: {'status': response.statusCode});
-          throw Exception('Error al cargar productos');
+          throw Exception(
+            ApiClient.extractErrorMessage(
+              response,
+              fallback: 'Error al cargar productos',
+            ),
+          );
         }
       } catch (e) {
         SecureLogger.error('Error fetching products', error: e);
@@ -168,7 +185,7 @@ class ProductService {
       try {
         final response = await _apiClient.get('/products/$id');
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
+          final data = ApiClient.extractData(response) as Map<String, dynamic>;
           return Product.fromJson(data);
         }
         return null;
@@ -188,8 +205,12 @@ class ProductService {
       try {
         final response = await _apiClient.get('/admin/products/low-stock');
         if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final productsList = data['products'] as List;
+          final data = ApiClient.extractData(response);
+          final productsList = (data is List)
+              ? data
+              : ((data is Map<String, dynamic> && data['products'] is List)
+                  ? data['products'] as List
+                  : <dynamic>[]);
           return productsList.map((p) => Product.fromJson(p)).toList();
         }
         return [];
@@ -208,7 +229,7 @@ class ProductService {
       try {
         final response = await _apiClient.patch(
           '/products/$productId/stock',
-          {'stock': newStock},
+          {'cantidad': newStock},
           requiresAuth: true,
         );
         return response.statusCode == 200;
