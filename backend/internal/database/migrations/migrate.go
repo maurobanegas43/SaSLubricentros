@@ -11,12 +11,12 @@ import (
 //go:embed *.sql
 var embedMigrations embed.FS
 
-// RunMigrations applies all pending migrations using goose with the MySQL dialect.
+// RunMigrations applies all pending migrations using goose with the PostgreSQL dialect.
 // Migrations are embedded in the binary via go:embed.
 func RunMigrations(db *sql.DB) error {
 	goose.SetBaseFS(embedMigrations)
 
-	if err := goose.SetDialect("mysql"); err != nil {
+	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
 
@@ -32,7 +32,7 @@ func RunMigrations(db *sql.DB) error {
 func RollbackLast(db *sql.DB) error {
 	goose.SetBaseFS(embedMigrations)
 
-	if err := goose.SetDialect("mysql"); err != nil {
+	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
 
