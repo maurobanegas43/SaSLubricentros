@@ -101,8 +101,7 @@ func (g *VehicleReportGenerator) GenerateVehicleServiceReport(
 					for _, add := range adds {
 						pdf.SetFont("Arial", "I", 7)
 						pdf.Cell(10, 5, "  ->")
-						pdf.Cell(180, 5, fmt.Sprintf("Correccion: %s: %s -> %s (%s)",
-							add.FieldName, add.OldValue, add.NewValue, add.Reason))
+						pdf.Cell(180, 5, fmt.Sprintf("Correccion: %s", add.Reason))
 						pdf.Ln(5)
 					}
 					pdf.SetFont("Arial", "", 8)

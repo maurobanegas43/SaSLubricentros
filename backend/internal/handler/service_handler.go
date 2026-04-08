@@ -128,9 +128,6 @@ func (h *ServiceHandler) CreateAddendum(c *gin.Context) {
 
 	addendum, err := h.serviceUsecase.CreateAddendum(c.Request.Context(), usecase.CreateAddendumInput{
 		ServiceID: serviceID,
-		FieldName: req.FieldName,
-		OldValue:  req.OldValue,
-		NewValue:  req.NewValue,
 		Reason:    req.Reason,
 		CreatedBy: userID,
 	})
@@ -173,9 +170,6 @@ func serviceAddendumToResponse(a entity.ServiceAddendum) dto.ServiceAddendumResp
 	return dto.ServiceAddendumResponse{
 		ID:        a.ID,
 		ServiceID: a.ServiceID,
-		FieldName: a.FieldName,
-		OldValue:  a.OldValue,
-		NewValue:  a.NewValue,
 		Reason:    a.Reason,
 		CreatedBy: a.CreatedBy,
 		CreatedAt: a.CreatedAt.Format("2006-01-02T15:04:05Z"),

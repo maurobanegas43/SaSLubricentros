@@ -16,9 +16,6 @@ type CreateServiceRecordRequest struct {
 // CreateServiceAddendumRequest represents the request body for creating a service addendum.
 type CreateServiceAddendumRequest struct {
 	ServiceID uint   `json:"service_id" validate:"required"`
-	FieldName string `json:"field_name" validate:"required,max=100"`
-	OldValue  string `json:"old_value,omitempty"`
-	NewValue  string `json:"new_value" validate:"required"`
 	Reason    string `json:"reason" validate:"required"`
 }
 
@@ -49,9 +46,6 @@ type ServiceRecordResponse struct {
 type ServiceAddendumResponse struct {
 	ID        uint   `json:"id"`
 	ServiceID uint   `json:"service_id"`
-	FieldName string `json:"field_name"`
-	OldValue  string `json:"old_value,omitempty"`
-	NewValue  string `json:"new_value"`
 	Reason    string `json:"reason"`
 	CreatedBy uint   `json:"created_by"`
 	CreatedAt string `json:"created_at"`

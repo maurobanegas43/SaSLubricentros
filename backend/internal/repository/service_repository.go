@@ -29,7 +29,7 @@ func (r *ServiceRecordRepositoryImpl) Create(ctx context.Context, record *entity
 	now := time.Now()
 	record.CreatedAt = now
 
-	result, err := r.DB.ExecContext(ctx, query,
+	result, err := r.ExecContext(ctx, query,
 		record.VehicleID, record.AppointmentID, record.Fecha, record.Km,
 		record.TipoAceite, record.MarcaAceite, record.CostoTotal,
 		record.Observaciones, record.ProximoServiceKm, record.CreatedBy, record.CreatedAt,
@@ -54,7 +54,7 @@ func (r *ServiceRecordRepositoryImpl) GetByID(ctx context.Context, id uint) (*en
 		FROM service_records WHERE id = ?`
 
 	var s entity.ServiceRecord
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
+	err := r.QueryRowContext(ctx, query, id).Scan(
 		&s.ID, &s.VehicleID, &s.AppointmentID, &s.Fecha, &s.Km,
 		&s.TipoAceite, &s.MarcaAceite, &s.CostoTotal,
 		&s.Observaciones, &s.ProximoServiceKm, &s.CreatedBy, &s.CreatedAt,
@@ -72,7 +72,7 @@ func (r *ServiceRecordRepositoryImpl) GetByVehicleID(ctx context.Context, vehicl
 		costo_total, observaciones, proximo_service_km, created_by, created_at
 		FROM service_records WHERE vehicle_id = ? ORDER BY fecha DESC LIMIT ? OFFSET ?`
 
-	rows, err := r.DB.QueryContext(ctx, query, vehicleID, limit, offset)
+	rows, err := r.QueryContext(ctx, query, vehicleID, limit, offset)
 	if err != nil {
 		return nil, WrapError(err, "service record get by vehicle id")
 	}
@@ -123,7 +123,7 @@ func (r *ServiceRecordRepositoryImpl) GetLastByVehicleID(ctx context.Context, ve
 	var appointmentID sql.NullInt64
 	var costoTotal sql.NullFloat64
 	var proximoServiceKm sql.NullInt64
-	err := r.DB.QueryRowContext(ctx, query, vehicleID).Scan(
+	err := r.QueryRowContext(ctx, query, vehicleID).Scan(
 		&s.ID, &s.VehicleID, &appointmentID, &s.Fecha, &s.Km,
 		&s.TipoAceite, &s.MarcaAceite, &costoTotal,
 		&s.Observaciones, &proximoServiceKm, &s.CreatedBy, &s.CreatedAt,
@@ -151,7 +151,7 @@ func (r *ServiceRecordRepositoryImpl) GetLastByVehicleID(ctx context.Context, ve
 // CountByVehicleID returns the total number of service records for a vehicle.
 func (r *ServiceRecordRepositoryImpl) CountByVehicleID(ctx context.Context, vehicleID uint) (int64, error) {
 	var count int64
-	err := r.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM service_records WHERE vehicle_id = ?", vehicleID).Scan(&count)
+	err := r.QueryRowContext(ctx, "SELECT COUNT(*) FROM service_records WHERE vehicle_id = ?", vehicleID).Scan(&count)
 	if err != nil {
 		return 0, WrapError(err, "service record count by vehicle id")
 	}
@@ -172,15 +172,14 @@ func NewServiceAddendumRepository(db *sql.DB) *ServiceAddendumRepositoryImpl {
 
 // Create inserts a new service addendum.
 func (r *ServiceAddendumRepositoryImpl) Create(ctx context.Context, addendum *entity.ServiceAddendum) error {
-	query := `INSERT INTO service_addenda (service_id, field_name, old_value, new_value, reason, created_by, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO service_addendums (service_id, description, created_by, created_at)
+		VALUES (?, ?, ?, ?)`
 
 	now := time.Now()
 	addendum.CreatedAt = now
 
-	result, err := r.DB.ExecContext(ctx, query,
-		addendum.ServiceID, addendum.FieldName, addendum.OldValue,
-		addendum.NewValue, addendum.Reason, addendum.CreatedBy, addendum.CreatedAt,
+	result, err := r.ExecContext(ctx, query,
+		addendum.ServiceID, addendum.Reason, addendum.CreatedBy, addendum.CreatedAt,
 	)
 	if err != nil {
 		return WrapError(err, "service addendum create")
@@ -197,10 +196,10 @@ func (r *ServiceAddendumRepositoryImpl) Create(ctx context.Context, addendum *en
 
 // GetByServiceID retrieves all addenda for a service record.
 func (r *ServiceAddendumRepositoryImpl) GetByServiceID(ctx context.Context, serviceID uint) ([]entity.ServiceAddendum, error) {
-	query := `SELECT id, service_id, field_name, old_value, new_value, reason, created_by, created_at
-		FROM service_addenda WHERE service_id = ? ORDER BY created_at ASC`
+	query := `SELECT id, service_id, description, created_by, created_at
+		FROM service_addendums WHERE service_id = ? ORDER BY created_at ASC`
 
-	rows, err := r.DB.QueryContext(ctx, query, serviceID)
+	rows, err := r.QueryContext(ctx, query, serviceID)
 	if err != nil {
 		return nil, WrapError(err, "service addendum get by service id")
 	}
@@ -210,8 +209,7 @@ func (r *ServiceAddendumRepositoryImpl) GetByServiceID(ctx context.Context, serv
 	for rows.Next() {
 		var a entity.ServiceAddendum
 		if err := rows.Scan(
-			&a.ID, &a.ServiceID, &a.FieldName, &a.OldValue,
-			&a.NewValue, &a.Reason, &a.CreatedBy, &a.CreatedAt,
+			&a.ID, &a.ServiceID, &a.Reason, &a.CreatedBy, &a.CreatedAt,
 		); err != nil {
 			return nil, WrapError(err, "service addendum get by service id: scan")
 		}
@@ -242,7 +240,7 @@ func (r *ServicePartUsedRepositoryImpl) Create(ctx context.Context, part *entity
 	query := `INSERT INTO service_parts_used (service_id, product_id, cantidad, costo_unitario)
 		VALUES (?, ?, ?, ?)`
 
-	result, err := r.DB.ExecContext(ctx, query,
+	result, err := r.ExecContext(ctx, query,
 		part.ServiceID, part.ProductID, part.Cantidad, part.CostoUnitario,
 	)
 	if err != nil {
@@ -263,7 +261,7 @@ func (r *ServicePartUsedRepositoryImpl) GetByServiceID(ctx context.Context, serv
 	query := `SELECT id, service_id, product_id, cantidad, costo_unitario
 		FROM service_parts_used WHERE service_id = ? ORDER BY id ASC`
 
-	rows, err := r.DB.QueryContext(ctx, query, serviceID)
+	rows, err := r.QueryContext(ctx, query, serviceID)
 	if err != nil {
 		return nil, WrapError(err, "service part get by service id")
 	}

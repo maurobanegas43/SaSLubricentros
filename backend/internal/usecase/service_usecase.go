@@ -131,9 +131,6 @@ func (uc *ServiceUsecase) GetServiceByID(ctx context.Context, id uint) (*entity.
 // CreateAddendumInput holds the input for creating a service addendum.
 type CreateAddendumInput struct {
 	ServiceID uint
-	FieldName string
-	OldValue  string
-	NewValue  string
 	Reason    string
 	CreatedBy uint
 }
@@ -147,15 +144,12 @@ func (uc *ServiceUsecase) CreateAddendum(ctx context.Context, input CreateAddend
 	}
 
 	// Validate required fields
-	if input.FieldName == "" || input.NewValue == "" || input.Reason == "" {
+	if input.Reason == "" {
 		return nil, repository.ErrInvalidInput
 	}
 
 	addendum := &entity.ServiceAddendum{
 		ServiceID: input.ServiceID,
-		FieldName: input.FieldName,
-		OldValue:  input.OldValue,
-		NewValue:  input.NewValue,
 		Reason:    input.Reason,
 		CreatedBy: input.CreatedBy,
 	}
