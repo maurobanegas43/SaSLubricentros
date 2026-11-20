@@ -1,0 +1,101 @@
+name: Security Audit - Password Protection
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  password-security-audit:
+    name: Password Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: 'stable'
+
+      - name: Check for password logging in Go files
+        run: |
+          echo "Scanning Go files for password logging..."
+          if grep -r "log\..*[Pp]assword\|logger\..*[Pp]assword\|fmt\.Print.*[Pp]assword" backend/ --include="*.go" --exclude="*_test.go"; then
+            echo "❌ SECURITY VIOLATION: Password logging detected in Go files"
+            exit 1
+          fi
+          echo "✅ No password logging found in Go files"
+
+      - name: Check for password logging in Dart files
+        run: |
+          echo "Scanning Dart files for password logging..."
+          if grep -r "print.*[Pp]assword\|debugPrint.*[Pp]assword" mobile/lib/ --include="*.dart"; then
+            echo "❌ SECURITY VIOLATION: Password logging detected in Dart files"
+            exit 1
+          fi
+          echo "✅ No password logging found in Dart files"
+
+      - name: Verify database schema security
+        run: |
+          echo "Checking database schema..."
+          if ! grep -q "password_hash" backend/migrations/001_initial_schema.sql; then
+            echo "❌ SECURITY VIOLATION: Database schema missing password_hash"
+            exit 1
+          fi
+          if grep "password VARCHAR" backend/migrations/*.sql | grep -v "password_hash" | grep -v "password_reset"; then
+            echo "❌ SECURITY VIOLATION: Plaintext password column detected"
+            exit 1
+          fi
+          echo "✅ Database schema is secure"
+
+      - name: Run backend security tests
+        working-directory: backend
+        run: |
+          echo "Running backend security tests..."
+          go test ./internal/middleware/... -v -run "TestPassword"
+
+      - name: Run mobile security tests
+        working-directory: mobile
+        run: |
+          echo "Running mobile security tests..."
+          flutter test test/utils/secure_logger_test.dart
+
+      - name: Run Go linter
+        working-directory: backend
+        run: |
+          echo "Installing golangci-lint..."
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          echo "Running Go linter..."
+          golangci-lint run --config ../.golangci.yml
+
+      - name: Run Dart analyzer
+        working-directory: mobile
+        run: |
+          echo "Running Dart analyzer..."
+          flutter analyze
+
+      - name: Security audit summary
+        if: success()
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "✅ PASSWORD SECURITY AUDIT PASSED"
+          echo "=========================================="
+          echo ""
+          echo "All checks passed:"
+          echo "  ✅ No password logging in Go files"
+          echo "  ✅ No password logging in Dart files"
+          echo "  ✅ Database schema uses password_hash"
+          echo "  ✅ Backend security tests passed"
+          echo "  ✅ Mobile security tests passed"
+          echo "  ✅ Linting checks passed"
+          echo ""

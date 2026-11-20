@@ -1,0 +1,42 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - forbidigo
+
+linters-settings:
+  forbidigo:
+    # Forbid logging of passwords
+    forbid:
+      - p: 'log\..*[Pp]assword'
+        msg: 'Logging passwords is forbidden for security reasons. Use [REDACTED] or remove the log statement.'
+      - p: 'logger\..*[Pp]assword'
+        msg: 'Logging passwords is forbidden for security reasons. Use [REDACTED] or remove the log statement.'
+      - p: 'fmt\.Print.*[Pp]assword'
+        msg: 'Printing passwords is forbidden for security reasons. Use [REDACTED] or remove the print statement.'
+      - p: 'fmt\.Sprintf.*[Pp]assword.*\)'
+        msg: 'Formatting strings with passwords is risky. Ensure passwords are not logged or exposed.'
+
+issues:
+  exclude-rules:
+    # Exclude all test files from errcheck - tests may not handle all errors
+    - path: '_test\.go'
+      linters:
+        - errcheck
+    # Allow forbidigo in test files
+    - path: '_test\.go'
+      linters:
+        - forbidigo
+    # Ignore deferred Rollback in repositories
+    - path: '_repository\.go'
+      text: 'defer tx\\.Rollback\\(\\)'
+      linters:
+        - errcheck

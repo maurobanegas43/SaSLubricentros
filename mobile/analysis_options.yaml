@@ -1,0 +1,38 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Errors
+    avoid_print: true
+    avoid_slow_async_io: true
+    cancel_subscriptions: true
+    close_sinks: true
+    no_duplicate_case_values: true
+    valid_regexps: true
+
+    # Style
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_final_fields: true
+    prefer_final_locals: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sort_child_properties_last: true
+    unawaited_futures: true
+    use_key_in_widget_constructors: true
+    avoid_unnecessary_containers: true
+    prefer_if_elements_to_conditional_expressions: true
+    prefer_interpolation_to_compose_strings: true
+
+    # Pub
+    depend_on_referenced_packages: true
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    missing_required_param: error
+    missing_return: error
+    todo: info

@@ -1,0 +1,65 @@
+# Backend (Go)
+backend/*.exe
+backend/*.exe~
+backend/*.dll
+backend/*.so
+backend/*.dylib
+backend/tmp/
+backend/.env
+backend/.env.*
+!backend/.env.example
+!backend/.env.render.example
+!backend/.env.production.example
+backend/bin/
+
+# Mobile (Flutter)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+mobile/build/
+mobile/*.iml
+mobile/.idea/
+mobile/.vscode/
+*.apk
+*.aab
+*.ipa
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+key.properties
+google-services.json
+GoogleService-Info.plist
+
+# General & Editor Temp Files
+.DS_Store
+*.log
+*.swp
+.*.swp
+*.swo
+.*.swo
+*~
+node_modules/
+.vscode/
+.idea/
+
+# Local secrets and tooling config
+.env
+.env.*
+**/.env
+**/.env.*
+!backend/.env.example
+!backend/.env.render.example
+!backend/.env.production.example
+.cline_mcp_servers.json
+
+# AI / Spec Tooling
+.atl/
+.kiro/
+openspec/
+
+# Local build outputs
+/app
